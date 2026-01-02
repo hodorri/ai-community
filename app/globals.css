@@ -45,4 +45,11 @@ body {
   .animate-bounce-slow {
     animation: bounce-slow 3s ease-in-out infinite;
   }
+  
+  /* 읏맨 캐릭터 투명 배경 강제 */
+  img[alt*="익맨"],
+  img[alt*="OK AI Community"] {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
 }

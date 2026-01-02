@@ -26,7 +26,7 @@ export default function LoginPage() {
         <div className="relative z-10 text-white text-center flex flex-col items-center">
           {/* 읏맨 캐릭터 */}
           <div className="mb-6 animate-bounce-slow">
-            <YutmanCharacter size={150} />
+            <YutmanCharacter size={225} />
           </div>
           <h3 className="text-4xl font-bold mb-6">OK AI Community에<br />오신 것을 환영합니다</h3>
           <p className="text-lg opacity-90 mb-8">

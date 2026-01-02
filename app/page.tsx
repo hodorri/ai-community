@@ -108,13 +108,13 @@ function LandingPage() {
           <div className="bg-white flex items-center px-8 lg:px-16 py-16">
             <div className="max-w-xl">
               <p className="text-sm font-semibold text-ok-primary uppercase tracking-wide mb-4">
-                INNOVATIVE SOLUTION FOR AI COMMUNITY
+                Everything will be better with AI
               </p>
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                OK AI Community에<br />오신 것을 환영합니다
+                OK AI Community
               </h1>
               <p className="text-lg text-gray-600 mb-8">
-                AI 개발자들이 함께 성장하고 지식을 공유하는 커뮤니티에 오신 것을 환영합니다.
+                AI 개발자들이 함께 성장하고 <br /> 지식을 공유하는 커뮤니티에 오신 것을 환영합니다.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link
@@ -138,7 +138,7 @@ function LandingPage() {
             <div className="relative z-10 flex flex-col items-center">
               {/* 읏맨 캐릭터 */}
               <div className="mb-6 animate-bounce-slow">
-                <YutmanCharacter size={180} />
+                <YutmanCharacter size={270} />
               </div>
               <div className="bg-white/20 backdrop-blur-sm rounded-3xl p-8 shadow-2xl w-full max-w-md">
                 <div className="text-white text-center">
