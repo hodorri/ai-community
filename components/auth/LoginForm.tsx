@@ -17,16 +17,52 @@ export default function LoginForm() {
     setError(null)
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) {
-      setError(error.message)
+    if (authError) {
+      setError(authError.message)
       setLoading(false)
-    } else {
-      router.push('/')
+      return
+    }
+
+    // 로그인 성공 후 프로필 상태 확인
+    if (authData.user) {
+      const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+      const isAdmin = authData.user.email === ADMIN_EMAIL
+
+      // 관리자는 바로 통과
+      if (isAdmin) {
+        router.push('/dashboard')
+        router.refresh()
+        return
+      }
+
+      // 프로필 상태 확인
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('status')
+        .eq('id', authData.user.id)
+        .single()
+
+      // 프로필이 없거나 승인되지 않은 경우
+      if (profileError || !profile || (profile.status !== 'approved')) {
+        // 로그아웃 처리
+        await supabase.auth.signOut()
+        
+        if (profile?.status === 'rejected') {
+          setError('가입이 거부되었습니다. 문의사항이 있으시면 관리자에게 연락해주세요.')
+        } else {
+          setError('승인 대기 중입니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.')
+        }
+        setLoading(false)
+        return
+      }
+
+      // 승인된 사용자만 대시보드로 이동
+      router.push('/dashboard')
       router.refresh()
     }
   }
@@ -62,7 +98,11 @@ export default function LoginForm() {
         />
       </div>
       {error && (
-        <div className="bg-red-50 border-2 border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
+        <div className={`px-4 py-3 rounded-xl text-sm ${
+          error.includes('승인 대기') 
+            ? 'bg-yellow-50 border-2 border-yellow-200 text-yellow-700' 
+            : 'bg-red-50 border-2 border-red-200 text-red-600'
+        }`}>
           {error}
         </div>
       )}

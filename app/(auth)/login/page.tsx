@@ -26,23 +26,13 @@ export default function LoginPage() {
         <div className="relative z-10 text-white text-center flex flex-col items-center">
           {/* 읏맨 캐릭터 */}
           <div className="mb-6 animate-bounce-slow">
-            <YutmanCharacter size={225} />
+            <YutmanCharacter size={225} imagePath="/okman4.png" />
           </div>
           <h3 className="text-4xl font-bold mb-6">OK AI Community에<br />오신 것을 환영합니다</h3>
-          <p className="text-lg opacity-90 mb-8">
+          <p className="text-lg opacity-90">
             AI 개발자들과 함께<br />
             지식을 공유하고 성장하세요
           </p>
-          <div className="space-y-4 w-full max-w-md">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
-              <div className="font-semibold mb-1">개발 일지</div>
-              <div className="text-sm opacity-80">일상을 공유하고 소통하세요</div>
-            </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
-              <div className="font-semibold mb-1">AI News & Study</div>
-              <div className="text-sm opacity-80">최신 정보와 학습 자료를 확인하세요</div>
-            </div>
-          </div>
         </div>
         {/* 장식 요소 */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>

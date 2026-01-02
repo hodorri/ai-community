@@ -38,12 +38,17 @@ export async function PUT(
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-      .select('*, user:profiles(email)')
+      .eq('user_id', user.id) // 소유자 확인
+      .select()
       .single()
 
     if (error) {
       console.error('Error updating comment:', error)
       return NextResponse.json({ error: '댓글 수정에 실패했습니다.' }, { status: 500 })
+    }
+
+    if (!updatedComment) {
+      return NextResponse.json({ error: '댓글을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 })
     }
 
     return NextResponse.json(updatedComment)
@@ -76,14 +81,21 @@ export async function DELETE(
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
-    const { error } = await supabase
+    const { data: deletedComment, error } = await supabase
       .from('comments')
       .delete()
       .eq('id', params.id)
+      .eq('user_id', user.id) // 소유자 확인
+      .select()
+      .single()
 
     if (error) {
       console.error('Error deleting comment:', error)
       return NextResponse.json({ error: '댓글 삭제에 실패했습니다.' }, { status: 500 })
+    }
+
+    if (!deletedComment) {
+      return NextResponse.json({ error: '댓글을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 })
     }
 
     return NextResponse.json({ success: true })

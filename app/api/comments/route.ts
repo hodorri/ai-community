@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const { data: comments, error } = await supabase
       .from('comments')
-      .select('*, user:profiles(email)')
+      .select('*, user:profiles(email, name, nickname, avatar_url)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
 
@@ -38,8 +38,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    // 승인 상태 확인
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .single()
+
+    const isAdmin = user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL
+    const isApproved = profile?.status === 'approved' || isAdmin
+
+    if (!isApproved) {
+      return NextResponse.json({ error: '관리자 승인이 필요합니다.' }, { status: 403 })
+    }
+
     const body = await request.json()
-    const { post_id, content } = body
+    const { post_id, content, parent_id } = body
 
     if (!post_id || !content) {
       return NextResponse.json({ error: 'post_id와 content가 필요합니다.' }, { status: 400 })
@@ -51,8 +65,9 @@ export async function POST(request: NextRequest) {
         post_id,
         user_id: user.id,
         content: content.trim(),
+        parent_id: parent_id || null,
       })
-      .select('*, user:profiles(email)')
+      .select('*, user:profiles(email, name, nickname, avatar_url)')
       .single()
 
     if (error) {

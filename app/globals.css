@@ -53,3 +53,123 @@ body {
     background-color: transparent !important;
   }
 }
+
+/* TipTap 에디터 스타일 */
+.ProseMirror {
+  outline: none;
+  min-height: 200px;
+  padding: 1rem;
+}
+
+.ProseMirror p {
+  margin: 0.75rem 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin: 1em 0 0.5em 0;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 0.8em 0 0.4em 0;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: bold;
+  margin: 0.6em 0 0.3em 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1em;
+  margin: 1em 0;
+  color: #6b7280;
+}
+
+.ProseMirror code {
+  background-color: #f3f4f6;
+  padding: 0.2em 0.4em;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background-color: #1f2937;
+  color: #f9fafb;
+  padding: 1em;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.ProseMirror pre code {
+  background-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  margin: 1em 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  display: block;
+  position: relative;
+}
+
+.ProseMirror img.ProseMirror-selectednode,
+.ProseMirror img.resizing {
+  outline: 2px solid #FF6600;
+  outline-offset: 2px;
+}
+
+/* 이미지 리사이즈 핸들 */
+.image-resize-wrapper {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-resize-wrapper .resize-handle {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background: #FF6600 !important;
+  border: 3px solid white !important;
+  border-radius: 50%;
+  cursor: nwse-resize;
+  z-index: 10000 !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: transform 0.1s, background 0.1s;
+  pointer-events: auto;
+  right: -12px !important;
+  bottom: -12px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.image-resize-wrapper .resize-handle:hover {
+  transform: scale(1.3);
+  background: #CC5200;
+}

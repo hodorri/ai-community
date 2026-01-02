@@ -4,6 +4,7 @@ export type Post = {
   title: string
   content: string
   image_urls: string[]
+  is_pinned?: boolean
   created_at: string
   updated_at: string
   user?: {
@@ -13,16 +14,39 @@ export type Post = {
   comments_count?: number
 }
 
+export type Profile = {
+  id: string
+  email: string | null
+  name?: string | null
+  nickname?: string | null
+  avatar_url?: string | null
+  employee_number?: string | null
+  company?: string | null
+  team?: string | null
+  position?: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+}
+
 export type Comment = {
   id: string
   post_id: string
   user_id: string
   content: string
+  parent_id?: string | null
   created_at: string
   updated_at: string
   user?: {
     email: string
+    name?: string
+    nickname?: string
+    avatar_url?: string
+    company?: string
+    team?: string
+    position?: string
   }
+  replies?: Comment[]
 }
 
 export type Like = {
@@ -30,4 +54,23 @@ export type Like = {
   post_id: string
   user_id: string
   created_at: string
+}
+
+export type CoP = {
+  id: string
+  user_id: string
+  name: string
+  description?: string | null
+  image_url?: string | null
+  max_members: number
+  activity_plan?: string | null
+  ai_tools?: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name?: string
+    nickname?: string
+  }
 }

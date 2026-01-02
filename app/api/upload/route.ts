@@ -31,8 +31,11 @@ export async function POST(request: NextRequest) {
     const fileName = `${user.id}/${Date.now()}.${fileExt}`
     const fileBuffer = await file.arrayBuffer()
 
+    // 프로필 이미지용 avatars 버킷 사용
+    const bucketName = 'avatars'
+
     const { data, error } = await supabase.storage
-      .from('post-images')
+      .from(bucketName)
       .upload(fileName, fileBuffer, {
         contentType: file.type,
         upsert: false,
@@ -40,11 +43,16 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Storage upload error:', error)
-      return NextResponse.json({ error: '파일 업로드에 실패했습니다.' }, { status: 500 })
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      // 에러 메시지를 더 자세히 반환
+      return NextResponse.json({ 
+        error: `파일 업로드에 실패했습니다: ${error.message || JSON.stringify(error)}`,
+        details: error
+      }, { status: 500 })
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('post-images')
+      .from(bucketName)
       .getPublicUrl(data.path)
 
     return NextResponse.json({ url: publicUrl })

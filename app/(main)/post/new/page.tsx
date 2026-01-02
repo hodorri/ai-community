@@ -1,19 +1,9 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import PostEditor from '@/components/post/PostEditor'
+import PostEditorWrapper from '@/components/post/PostEditorWrapper'
 
-export default async function NewPostPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
+export default function NewPostPage() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">새 게시글 작성</h1>
-      <PostEditor />
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <PostEditorWrapper />
     </div>
   )
 }

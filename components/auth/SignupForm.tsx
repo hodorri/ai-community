@@ -8,6 +8,8 @@ export default function SignupForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [name, setName] = useState('')
+  const [employeeNumber, setEmployeeNumber] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -27,6 +29,16 @@ export default function SignupForm() {
       return
     }
 
+    if (!name.trim()) {
+      setError('이름을 입력해주세요.')
+      return
+    }
+
+    if (!employeeNumber.trim()) {
+      setError('사번을 입력해주세요.')
+      return
+    }
+
     setLoading(true)
 
     const { data, error } = await supabase.auth.signUp({
@@ -34,13 +46,50 @@ export default function SignupForm() {
       password,
       options: {
         emailRedirectTo: undefined,
+        data: {
+          name: name.trim(),
+          employee_number: employeeNumber.trim(),
+        },
       },
     })
 
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
+    } else if (data.user) {
+      // 프로필에 이름과 사번 저장
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: name.trim(),
+          employee_number: employeeNumber.trim(),
+        })
+        .eq('id', data.user.id)
+
+      if (profileError) {
+        console.error('프로필 업데이트 오류:', profileError)
+      }
+
+      // 관리자에게 이메일 알림 발송
+      try {
+        await fetch('/api/notify-admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            userEmail: email,
+            userName: name.trim(),
+            employeeNumber: employeeNumber.trim(),
+          }),
+        })
+      } catch (err) {
+        console.error('관리자 알림 발송 실패:', err)
+        // 이메일 발송 실패해도 회원가입은 성공으로 처리
+      }
+
+      // 회원가입 성공 - 관리자 승인 대기 안내
+      alert('회원가입이 완료되었습니다!\n관리자 승인 후 서비스를 이용하실 수 있습니다.')
       router.push('/')
       router.refresh()
     }
@@ -61,6 +110,35 @@ export default function SignupForm() {
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
           placeholder="your@email.com"
         />
+      </div>
+      <div>
+        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+          이름 <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+          placeholder="홍길동"
+        />
+      </div>
+      <div>
+        <label htmlFor="employeeNumber" className="block text-sm font-semibold text-gray-700 mb-2">
+          사번 <span className="text-red-500">*</span>
+        </label>
+        <input
+          id="employeeNumber"
+          type="text"
+          value={employeeNumber}
+          onChange={(e) => setEmployeeNumber(e.target.value)}
+          required
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+          placeholder="사번을 입력하세요"
+        />
+        <p className="text-xs text-gray-500 mt-1">회사 직원 확인을 위해 필요합니다.</p>
       </div>
       <div>
         <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">

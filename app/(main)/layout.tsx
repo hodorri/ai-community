@@ -1,4 +1,8 @@
+'use client'
+
 import Navbar from '@/components/Navbar'
+import Sidebar from '@/components/Sidebar'
+import ApprovalBanner from '@/components/ApprovalBanner'
 
 export default function MainLayout({
   children,
@@ -8,9 +12,13 @@ export default function MainLayout({
   return (
     <>
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gray-50 min-h-screen">
-        {children}
-      </main>
+      <div className="flex">
+        <Sidebar />
+        <main className="flex-1 bg-gray-50 min-h-screen">
+          <ApprovalBanner />
+          {children}
+        </main>
+      </div>
     </>
   )
 }

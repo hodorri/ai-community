@@ -29,7 +29,7 @@ export default function ImageUpload({ onImagesChange, existingImages = [] }: Ima
       formData.append('file', file)
 
       try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/upload-post-image', {
           method: 'POST',
           body: formData,
         })

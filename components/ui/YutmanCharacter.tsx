@@ -3,9 +3,10 @@
 interface YutmanCharacterProps {
   size?: number
   className?: string
+  imagePath?: string
 }
 
-export default function YutmanCharacter({ size = 200, className = '' }: YutmanCharacterProps) {
+export default function YutmanCharacter({ size = 200, className = '', imagePath = '/logo2.png' }: YutmanCharacterProps) {
   return (
     <div 
       className={`inline-block ${className}`} 
@@ -17,8 +18,8 @@ export default function YutmanCharacter({ size = 200, className = '' }: YutmanCh
       }}
     >
       <img
-        src="/okman4.png"
-        alt="OK AI Community 읏맨 캐릭터"
+        src={imagePath}
+        alt="OK AI Community 로고"
         width={size}
         height={size}
         className="w-full h-full object-contain"
