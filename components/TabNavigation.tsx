@@ -45,9 +45,9 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
               </button>
             ))}
           </div>
-          {user && (
+          {user && (activeTab === 'news' || activeTab === 'diary') && (
             <Link
-              href="/news/new"
+              href={activeTab === 'news' ? '/news/new' : '/post/new'}
               className="ml-4 bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
             >
               글쓰기
