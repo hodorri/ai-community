@@ -59,6 +59,7 @@ export default function UserMenu() {
               alt={displayName}
               fill
               className="object-cover"
+              sizes="32px"
             />
           </div>
         ) : (

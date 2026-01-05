@@ -8,16 +8,16 @@ export default function LoginPage() {
       {/* 왼쪽: 로그인 폼 */}
       <div className="bg-white flex items-center justify-center px-8 py-16">
         <div className="w-full max-w-md space-y-8">
-          <div>
+        <div>
             <h2 className="text-4xl font-bold text-gray-900 mb-2">로그인</h2>
             <p className="text-gray-600">
-              또는{' '}
+            또는{' '}
               <Link href="/signup" className="text-ok-primary hover:text-ok-dark font-semibold">
-                회원가입
-              </Link>
-            </p>
-          </div>
-          <LoginForm />
+              회원가입
+            </Link>
+          </p>
+        </div>
+        <LoginForm />
         </div>
       </div>
 

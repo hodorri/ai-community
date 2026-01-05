@@ -154,7 +154,7 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
   const timeAgo = getTimeAgo(new Date(post.created_at))
 
   return (
-    <div className="bg-white">
+    <div>
       {/* 상단 네비게이션 */}
       <div className="flex items-center justify-between mb-6 pb-4 border-b">
         <button
@@ -251,16 +251,17 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
       </div>
 
       {/* 제목 */}
-      <h1 className="text-3xl font-bold mb-6 text-gray-900">{post.title}</h1>
+      <h1 className="text-3xl font-bold mb-8 text-gray-900 leading-tight">{post.title}</h1>
 
       {/* 본문 내용 */}
       <div 
-        className="prose max-w-none mb-8 ProseMirror"
+        className="prose prose-lg max-w-none mb-10 ProseMirror"
+        style={{ maxWidth: '100%' }}
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
 
       {/* 좋아요 수 및 버튼 */}
-      <div className="flex items-center gap-3 mb-6 pb-6 border-b">
+      <div className="flex items-center gap-4 mb-0 pb-6 border-b">
         <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
         </svg>

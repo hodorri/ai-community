@@ -4,11 +4,19 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('인증 오류:', authError)
+      return NextResponse.json({ error: `인증 오류: ${authError.message}` }, { status: 401 })
+    }
 
     if (!user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+      console.error('사용자 정보 없음')
+      return NextResponse.json({ error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' }, { status: 401 })
     }
+
+    console.log('인증된 사용자:', user.email)
 
     const formData = await request.formData()
     const file = formData.get('file') as File

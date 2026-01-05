@@ -54,7 +54,7 @@ export default function LoginForm() {
         
         if (profile?.status === 'rejected') {
           setError('가입이 거부되었습니다. 문의사항이 있으시면 관리자에게 연락해주세요.')
-        } else {
+    } else {
           setError('승인 대기 중입니다. 관리자 승인 후 서비스를 이용하실 수 있습니다.')
         }
         setLoading(false)

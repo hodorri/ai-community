@@ -159,14 +159,31 @@ export default function PostPageClient({ postId }: PostPageClientProps) {
     )
   }
 
+  // post가 null이 아님이 보장됨 (위의 early return으로)
+  if (!post) {
+    return null
+  }
+
+  // 타입 단언: post는 이 시점에서 null이 아님
+  const postData: Post & { user?: { email: string } } = {
+    ...post,
+    user: post.user ? { email: post.user.email } : undefined,
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4">
-      <PostDetail
-        post={post}
-        isLiked={isLiked}
-        currentUserId={currentUserId}
-      />
-      <CommentSection postId={postId} />
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="max-w-3xl mx-auto">
+          <PostDetail
+            post={postData}
+            isLiked={isLiked}
+            currentUserId={currentUserId}
+          />
+          <div className="px-6 sm:px-8 pb-6">
+            <CommentSection postId={postId} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

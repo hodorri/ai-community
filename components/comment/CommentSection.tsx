@@ -99,7 +99,7 @@ export default function CommentSection({ postId }: CommentSectionProps) {
   }
 
   return (
-    <div className="bg-white pt-6">
+    <div className="pt-6">
       {/* 댓글 입력창 */}
       {user ? (
         <CommentForm postId={postId} onCommentAdded={handleCommentAdded} />

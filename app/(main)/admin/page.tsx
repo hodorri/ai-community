@@ -20,24 +20,46 @@ export default function AdminPage() {
   const [allUsers, setAllUsers] = useState<Profile[]>([])
   const [allCops, setAllCops] = useState<CoP[]>([])
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [filterStatus, setFilterStatus] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending')
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/login')
-      return
+    const checkAdmin = async () => {
+      if (!authLoading && !user) {
+        router.push('/login')
+        return
+      }
+
+      if (!user) return
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        const adminCheck = profile?.email === ADMIN_EMAIL
+        setIsAdmin(adminCheck)
+
+        if (!adminCheck) {
+          router.push('/')
+          return
+        }
+
+        if (adminCheck) {
+          fetchAllUsers()
+          fetchAllCops()
+        }
+      } catch (error) {
+        console.error('관리자 확인 오류:', error)
+        setIsAdmin(false)
+        router.push('/')
+      }
     }
 
-    if (user && user.email !== ADMIN_EMAIL) {
-      router.push('/')
-      return
-    }
-
-    if (user && user.email === ADMIN_EMAIL) {
-      fetchAllUsers()
-      fetchAllCops()
-    }
-  }, [user, authLoading, router])
+    checkAdmin()
+  }, [user, authLoading, router, supabase])
 
   const fetchAllUsers = async () => {
     try {
@@ -61,6 +83,7 @@ export default function AdminPage() {
 
   const fetchAllCops = async () => {
     try {
+      console.log('[관리자] CoP 조회 시작')
       // 먼저 cops만 조회 (조인 없이)
       const { data: copsData, error: copsError } = await supabase
         .from('cops')
@@ -68,12 +91,16 @@ export default function AdminPage() {
         .order('created_at', { ascending: false })
 
       if (copsError) {
-        console.error('Error fetching cops:', copsError)
+        console.error('[관리자] CoP 조회 오류:', copsError)
         setAllCops([])
         return
       }
 
+      console.log('[관리자] 조회된 CoP 개수:', copsData?.length || 0)
+      console.log('[관리자] CoP 데이터:', copsData)
+
       if (!copsData || copsData.length === 0) {
+        console.log('[관리자] CoP 데이터가 없습니다.')
         setAllCops([])
         return
       }
@@ -94,9 +121,11 @@ export default function AdminPage() {
         })
       )
 
+      console.log('[관리자] 프로필 정보 포함된 CoP:', copsWithUsers)
+      console.log('[관리자] pending 상태 CoP:', copsWithUsers.filter(c => c.status === 'pending'))
       setAllCops(copsWithUsers)
     } catch (error) {
-      console.error('Error fetching cops:', error)
+      console.error('[관리자] CoP 조회 예외:', error)
       setAllCops([])
     }
   }
@@ -213,13 +242,36 @@ export default function AdminPage() {
     )
   }
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !isAdmin) {
     return null
   }
 
   const filteredCops = filterStatus === 'all' 
     ? allCops 
-    : allCops.filter(c => c.status === filterStatus)
+    : allCops.filter(c => {
+        const matches = c.status === filterStatus
+        if (!matches && c.status) {
+          console.log(`[필터] CoP ${c.id} 상태 불일치:`, { 
+            copStatus: c.status, 
+            filterStatus, 
+            statusType: typeof c.status,
+            filterType: typeof filterStatus
+          })
+        }
+        return matches
+      })
+
+  console.log('[관리자] 필터 상태:', filterStatus)
+  console.log('[관리자] 전체 CoP 개수:', allCops.length)
+  console.log('[관리자] 필터링된 CoP 개수:', filteredCops.length)
+  console.log('[관리자] 전체 CoP 상태 분포:', {
+    pending: allCops.filter(c => c.status === 'pending').length,
+    approved: allCops.filter(c => c.status === 'approved').length,
+    rejected: allCops.filter(c => c.status === 'rejected').length,
+    null: allCops.filter(c => !c.status).length,
+    other: allCops.filter(c => c.status && !['pending', 'approved', 'rejected'].includes(c.status)).length
+  })
+  console.log('[관리자] 필터링된 CoP:', filteredCops)
 
   return (
     <div className="max-w-4xl mx-auto">

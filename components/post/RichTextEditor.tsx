@@ -128,10 +128,6 @@ export default function RichTextEditor({
         class: 'ProseMirror focus:outline-none',
       },
     },
-    onError: ({ editor, error }) => {
-      console.error('TipTap 에디터 오류:', error)
-      setError('에디터 초기화 중 오류가 발생했습니다.')
-    },
   })
 
   // content가 변경되면 에디터 업데이트 (외부에서 content가 변경된 경우만)
@@ -140,7 +136,7 @@ export default function RichTextEditor({
       try {
         const currentContent = editor.getHTML()
         if (content !== currentContent) {
-          editor.commands.setContent(content || '', false)
+          editor.commands.setContent(content || '', { emitUpdate: false })
         }
       } catch (err) {
         console.error('에디터 content 업데이트 오류:', err)

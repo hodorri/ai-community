@@ -74,3 +74,56 @@ export type CoP = {
     nickname?: string
   }
 }
+
+export type News = {
+  id: string
+  title: string
+  content: string
+  source_url?: string | null
+  source_site?: string | null
+  author_name?: string | null
+  user_id?: string | null
+  image_url?: string | null
+  published_at?: string | null
+  is_manual: boolean
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name?: string
+    nickname?: string
+    avatar_url?: string | null
+    company?: string | null
+    team?: string | null
+    position?: string | null
+  }
+  likes_count?: number
+  comments_count?: number
+}
+
+export type NewsLike = {
+  id: string
+  news_id: string
+  user_id: string
+  created_at: string
+}
+
+export type NewsComment = {
+  id: string
+  news_id: string
+  user_id: string
+  content: string
+  parent_id?: string | null
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name?: string
+    nickname?: string
+    avatar_url?: string | null
+    company?: string | null
+    team?: string | null
+    position?: string | null
+  }
+  replies?: NewsComment[]
+}

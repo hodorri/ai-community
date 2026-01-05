@@ -14,17 +14,17 @@ export default function SignupPage() {
       {/* 왼쪽: 회원가입 폼 */}
       <div className="bg-white flex items-center justify-center px-8 py-16">
         <div className="w-full max-w-md space-y-8">
-          <div>
+        <div>
             <h2 className="text-4xl font-bold text-gray-900 mb-2">회원가입</h2>
             <p className="text-gray-600">
-              이미 계정이 있으신가요?{' '}
+            이미 계정이 있으신가요?{' '}
               <Link href="/login" className="text-ok-primary hover:text-ok-dark font-semibold">
-                로그인
-              </Link>
-            </p>
-          </div>
-          <SignupForm />
+              로그인
+            </Link>
+          </p>
         </div>
+        <SignupForm />
+      </div>
       </div>
 
       {/* 오른쪽: 그라데이션 배경 */}

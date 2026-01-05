@@ -247,6 +247,32 @@ export default function CopDetailClient({ cop }: CopDetailClientProps) {
         throw error
       }
 
+      // 개설자에게 이메일 알림 발송
+      try {
+        // 현재 사용자 프로필 정보 조회
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, nickname, email')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        await fetch('/api/notify-cop-owner', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            copId: cop.id,
+            copName: cop.name,
+            requesterName: profile?.nickname || profile?.name || null,
+            requesterEmail: user.email || profile?.email || null,
+          }),
+        })
+      } catch (err) {
+        console.error('이메일 발송 실패:', err)
+        // 이메일 발송 실패해도 가입 요청은 성공으로 처리
+      }
+
       setHasPendingRequest(true)
       if (isOwner || isAdmin) {
         fetchPendingRequests()
@@ -291,6 +317,28 @@ export default function CopDetailClient({ cop }: CopDetailClientProps) {
 
   const handleApproveMember = async (memberId: string) => {
     try {
+      // 승인 전에 멤버 정보 조회 (이메일 발송용)
+      const request = pendingRequests.find(r => r.id === memberId)
+      let memberEmail: string | null = null
+      let memberName: string | null = null
+
+      if (request?.user_id) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, name, nickname')
+            .eq('id', request.user_id)
+            .maybeSingle()
+
+          if (profile) {
+            memberEmail = profile.email || null
+            memberName = profile.nickname || profile.name || null
+          }
+        } catch (err) {
+          console.error('멤버 프로필 조회 오류:', err)
+        }
+      }
+
       const { error } = await supabase
         .from('cop_members')
         .update({ status: 'approved' })
@@ -298,6 +346,37 @@ export default function CopDetailClient({ cop }: CopDetailClientProps) {
 
       if (error) {
         throw error
+      }
+
+      // 승인된 멤버에게 이메일 알림 발송
+      if (memberEmail) {
+        try {
+          console.log('[가입 승인] 이메일 발송 시도:', memberEmail)
+          const emailResponse = await fetch('/api/notify-cop-member-approved', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              copId: cop.id,
+              copName: cop.name,
+              memberEmail: memberEmail,
+              memberName: memberName,
+            }),
+          })
+          
+          const emailResult = await emailResponse.json()
+          console.log('[가입 승인] 이메일 발송 결과:', emailResult)
+          
+          if (!emailResponse.ok) {
+            console.error('[가입 승인] 이메일 발송 실패:', emailResult)
+          }
+        } catch (err) {
+          console.error('[가입 승인] 이메일 발송 오류:', err)
+          // 이메일 발송 실패해도 승인은 성공으로 처리
+        }
+      } else {
+        console.warn('[가입 승인] 멤버 이메일을 찾을 수 없어 이메일을 발송하지 않았습니다.')
       }
 
       fetchMembers()

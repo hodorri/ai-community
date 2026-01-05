@@ -1,18 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import PostCard from '@/components/post/PostCard'
 import PostListItem from '@/components/post/PostListItem'
-import TabNavigation from '@/components/TabNavigation'
 import CopList from '@/components/cop/CopList'
 import CopCreateForm from '@/components/cop/CopCreateForm'
+import MyCopRequests from '@/components/cop/MyCopRequests'
+import NewsContent from '@/components/news/NewsContent'
 
 type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study'
 
-export default function DashboardPage() {
+function DashboardContent() {
   const { user, loading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -61,17 +62,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen">
-      {/* 탭 네비게이션 */}
-      <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
-
       {/* 탭 컨텐츠 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'all' && user && (
           <div className="space-y-12">
-            <div>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">최신 AI 소식</h2>
-              <NewsContent />
-            </div>
+            {/* 최신 AI 소식 - 제목 없이 바로 피처드 아티클 + 그리드 레이아웃 */}
+            <NewsContent />
+            
             <div>
               <h2 className="text-2xl font-bold mb-6 text-gray-900">AI 활용 사례</h2>
               <DiaryContent />
@@ -224,17 +221,7 @@ function DiaryContent() {
   )
 }
 
-// 최신 AI News 컴포넌트
-function NewsContent() {
-  return (
-    <div className="text-center py-12">
-      <div className="bg-gradient-ok-subtle rounded-2xl p-12">
-        <p className="text-gray-600 mb-2 text-lg">최신 AI News 기능은 준비 중입니다.</p>
-        <p className="text-sm text-gray-400">곧 만나보실 수 있습니다.</p>
-      </div>
-    </div>
-  )
-}
+// 최신 AI News 컴포넌트는 별도 파일로 분리됨
 
 // AI 활용 사례 컴포넌트
 function CasesContent() {
@@ -252,6 +239,7 @@ function CasesContent() {
 function StudyContent({ showCreateButton = true, showTitle = true }: { showCreateButton?: boolean, showTitle?: boolean }) {
   const { user } = useAuth()
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showMyRequests, setShowMyRequests] = useState(false)
 
   return (
     <div>
@@ -261,12 +249,20 @@ function StudyContent({ showCreateButton = true, showTitle = true }: { showCreat
           {showTitle && <h2 className="text-2xl font-bold text-gray-900">AI CoP</h2>}
           {!showTitle && showCreateButton && <div />}
           {showCreateButton && user && (
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
-            >
-              개설하기
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMyRequests(true)}
+                className="bg-gray-100 text-gray-700 px-6 py-2 rounded-full text-sm font-semibold hover:bg-gray-200 transition-colors"
+              >
+                개설 내역 조회하기
+              </button>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+              >
+                개설하기
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -285,6 +281,21 @@ function StudyContent({ showCreateButton = true, showTitle = true }: { showCreat
           }}
         />
       )}
+
+      {/* 내 CoP 개설 내역 모달 */}
+      {showMyRequests && (
+        <MyCopRequests
+          onClose={() => setShowMyRequests(false)}
+        />
+      )}
     </div>
+  )
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">로딩 중...</div>}>
+      <DashboardContent />
+    </Suspense>
   )
 }
