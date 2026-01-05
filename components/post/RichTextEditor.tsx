@@ -59,7 +59,6 @@ export default function RichTextEditor({
         heading: {
           levels: [1, 2, 3],
         },
-        link: false, // Link extension을 별도로 추가하므로 비활성화
       }),
       Placeholder.configure({
         placeholder,
@@ -136,7 +135,7 @@ export default function RichTextEditor({
       try {
         const currentContent = editor.getHTML()
         if (content !== currentContent) {
-          editor.commands.setContent(content || '', { emitUpdate: false })
+          editor.commands.setContent(content || '', false)
         }
       } catch (err) {
         console.error('에디터 content 업데이트 오류:', err)
