@@ -45,7 +45,7 @@ export default function Navbar() {
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const searchFormRef = useRef<HTMLFormElement>(null)
+  const searchFormRef = useRef<HTMLDivElement>(null)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
