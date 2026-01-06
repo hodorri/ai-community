@@ -8,7 +8,11 @@ import NewsListRowItem from './NewsListRowItem'
 import NewsEditor from './NewsEditor'
 import type { News } from '@/lib/types/database'
 
-export default function NewsContent() {
+interface NewsContentProps {
+  showAll?: boolean // true면 모든 뉴스 표시, false면 고정 게시물만 표시 (기본값: true)
+}
+
+export default function NewsContent({ showAll = true }: NewsContentProps = {}) {
   const { user } = useAuth()
   const supabase = createClient()
   const [news, setNews] = useState<News[]>([])
@@ -18,6 +22,17 @@ export default function NewsContent() {
 
   useEffect(() => {
     fetchNews()
+    
+    // 뉴스 업데이트 이벤트 리스너 등록
+    const handleNewsUpdate = () => {
+      fetchNews()
+    }
+    
+    window.addEventListener('news-updated', handleNewsUpdate)
+    
+    return () => {
+      window.removeEventListener('news-updated', handleNewsUpdate)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -26,20 +41,67 @@ export default function NewsContent() {
       setLoading(true)
       setError(null)
 
-      // 모든 뉴스 조회 (크롤링된 글 + 개별 작성 글 모두 포함)
-      const { data: allNewsData, error: newsError } = await supabase
-        .from('news')
-        .select('*')
-        .order('published_at', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false })
-        .limit(100)
+      // news 테이블과 selected_news 테이블에서 모두 조회
+      const [newsResult, selectedNewsResult] = await Promise.all([
+        supabase
+          .from('news')
+          .select('*')
+          .order('published_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .limit(100),
+        supabase
+          .from('selected_news')
+          .select('*')
+          .order('selected_at', { ascending: false })
+          .limit(100),
+      ])
 
-      if (newsError) {
-        console.error('뉴스 조회 오류:', newsError)
-        throw new Error(newsError.message || '뉴스를 불러오는데 실패했습니다.')
+      if (newsResult.error) {
+        console.error('뉴스 조회 오류:', newsResult.error)
+        throw new Error(newsResult.error.message || '뉴스를 불러오는데 실패했습니다.')
       }
 
-      if (!allNewsData || allNewsData.length === 0) {
+      if (selectedNewsResult.error) {
+        console.error('선택된 뉴스 조회 오류:', selectedNewsResult.error)
+        throw new Error(selectedNewsResult.error.message || '선택된 뉴스를 불러오는데 실패했습니다.')
+      }
+
+      // 두 테이블의 데이터를 합치고 News 타입으로 변환
+      const newsData = (newsResult.data || []).map(item => ({
+        ...item,
+        source_url: item.source_url || null,
+        source_site: item.source_site || null,
+        author_name: item.author_name || null,
+        image_url: item.image_url || null,
+        published_at: item.published_at || item.created_at,
+        is_manual: item.is_manual ?? false,
+        is_pinned: item.is_pinned ?? false,
+      }))
+
+      const selectedNewsData = (selectedNewsResult.data || []).map(item => ({
+        id: item.id,
+        title: item.title,
+        content: item.content || '',
+        source_url: item.source_url || null,
+        source_site: item.source_site || null,
+        author_name: item.author_name || null,
+        user_id: null,
+        image_url: item.image_url || null,
+        published_at: item.published_at || item.selected_at,
+        is_manual: false,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        is_pinned: item.is_pinned ?? false, // selected_news 테이블의 is_pinned 값 사용
+      }))
+
+      // 두 데이터를 합치고 날짜순으로 정렬
+      const allNewsData = [...newsData, ...selectedNewsData].sort((a, b) => {
+        const dateA = new Date(a.published_at || a.created_at).getTime()
+        const dateB = new Date(b.published_at || b.created_at).getTime()
+        return dateB - dateA
+      })
+
+      if (allNewsData.length === 0) {
         setNews([])
         setLoading(false)
         return
@@ -48,44 +110,49 @@ export default function NewsContent() {
       // 각 뉴스의 프로필 정보, 좋아요 수, 댓글 수 조회
       const newsWithCounts = await Promise.all(
         allNewsData.map(async (item) => {
-          // 좋아요 수 조회
-          const [likesResult] = await Promise.all([
-            supabase
+          // news 테이블에서 온 항목만 좋아요/댓글 수 조회 (selected_news는 news_id가 없음)
+          const isFromNewsTable = newsData.some(n => n.id === item.id)
+          
+          let likesCount = 0
+          let commentsCount = 0
+
+          if (isFromNewsTable) {
+            // 좋아요 수 조회
+            const likesResult = await supabase
               .from('news_likes')
               .select('*', { count: 'exact', head: true })
-              .eq('news_id', item.id),
-          ])
+              .eq('news_id', item.id)
 
-          // 댓글 수 조회
-          const [commentsResult] = await Promise.all([
-            supabase
+            // 댓글 수 조회
+            const commentsResult = await supabase
               .from('news_comments')
               .select('*', { count: 'exact', head: true })
-              .eq('news_id', item.id),
-          ])
+              .eq('news_id', item.id)
+
+            likesCount = likesResult.count || 0
+            commentsCount = commentsResult.count || 0
+          }
 
           // 수동 게시인 경우 프로필 정보 조회
           if (item.is_manual && item.user_id) {
-            const [profileResult] = await Promise.all([
-              supabase
-                .from('profiles')
-                .select('email, name, nickname, avatar_url, company, team, position')
-                .eq('id', item.user_id)
-                .maybeSingle(),
-            ])
+            const profileResult = await supabase
+              .from('profiles')
+              .select('email, name, nickname, avatar_url, company, team, position')
+              .eq('id', item.user_id)
+              .maybeSingle()
 
             return {
               ...item,
               user: profileResult.data || null,
-              likes_count: likesResult.count || 0,
-              comments_count: commentsResult.count || 0,
+              likes_count: likesCount,
+              comments_count: commentsCount,
             } as News
           }
 
           return {
             ...item,
-            likes_count: likesResult.count || 0,
-            comments_count: commentsResult.count || 0,
+            likes_count: likesCount,
+            comments_count: commentsCount,
           } as News
         })
       )
@@ -125,43 +192,58 @@ export default function NewsContent() {
     )
   }
 
-  // 고정 게시물과 일반 게시물 분리
-  // 고정 게시물: is_pinned가 true인 것만 (최대 3개)
-  const pinnedNews = news.filter(item => item.is_pinned === true).slice(0, 3)
-  // 일반 게시물: is_pinned가 false이거나 null/undefined인 모든 게시물 (크롤링된 글 + 개별 작성 글 모두 포함)
-  const regularNews = news.filter(item => item.is_pinned !== true)
+      // 고정 게시물과 일반 게시물 분리
+      // 고정 게시물: is_pinned가 true인 것만 (최대 3개)
+      const pinnedNews = news.filter(item => item.is_pinned === true).slice(0, 3)
+      // 일반 게시물: is_pinned가 false이거나 null/undefined인 모든 게시물 (크롤링된 글 + 개별 작성 글 모두 포함)
+      const regularNews = news.filter(item => item.is_pinned !== true)
 
-  return (
-    <div>
-      {/* 뉴스 목록 */}
-      {news.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="bg-gradient-ok-subtle rounded-2xl p-12">
-            <p className="text-gray-600 mb-2 text-lg">아직 뉴스가 없습니다.</p>
-            <p className="text-sm text-gray-400">새로운 뉴스를 작성해보세요.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-8">
-          {/* 고정 게시물 3개 병렬 표시 */}
-          {pinnedNews.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {pinnedNews.map((item) => (
-                <PinnedNewsItem key={item.id} news={item} />
-              ))}
+      return (
+        <div>
+          {/* 뉴스 목록 */}
+          {news.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="bg-gradient-ok-subtle rounded-2xl p-12">
+                <p className="text-gray-600 mb-2 text-lg">아직 뉴스가 없습니다.</p>
+                <p className="text-sm text-gray-400">새로운 뉴스를 작성해보세요.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* 고정 게시물 3개 병렬 표시 */}
+              {pinnedNews.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {pinnedNews.map((item) => (
+                    <PinnedNewsItem key={item.id} news={item} />
+                  ))}
+                </div>
+              )}
+
+              {/* 전체보기 모드가 아닐 때만 "기사 전체보기" 버튼 표시 */}
+              {!showAll && pinnedNews.length > 0 && (
+                <div className="flex justify-center pt-4">
+                  <a
+                    href="/dashboard?tab=news"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition-colors"
+                  >
+                    아티클 전체보기
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </a>
+                </div>
+              )}
+
+              {/* 전체보기 모드일 때만 일반 게시물 목록 표시 */}
+              {showAll && regularNews.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  {regularNews.map((item) => (
+                    <NewsListRowItem key={item.id} news={item} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
-
-          {/* 일반 게시물 목록 (PostListItem 스타일) */}
-          {regularNews.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              {regularNews.map((item) => (
-                <NewsListRowItem key={item.id} news={item} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 뉴스 작성 폼 모달 */}
       {showCreateForm && (

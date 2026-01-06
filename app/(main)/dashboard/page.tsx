@@ -66,8 +66,8 @@ function DashboardContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'all' && user && (
           <div className="space-y-12">
-            {/* 최신 AI 소식 - 제목 없이 바로 피처드 아티클 + 그리드 레이아웃 */}
-            <NewsContent />
+            {/* 최신 AI 소식 - 고정 게시물만 표시 + 전체보기 버튼 */}
+            <NewsContent showAll={false} />
             
             <div>
               <h2 className="text-2xl font-bold mb-6 text-gray-900">AI 활용 사례</h2>

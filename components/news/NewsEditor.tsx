@@ -14,9 +14,10 @@ interface NewsEditorProps {
   onSuccess: () => void
   news?: News
   isModal?: boolean // 모달 모드 여부
+  isFromSelectedNews?: boolean // selected_news 테이블에서 온 뉴스인지 여부
 }
 
-export default function NewsEditor({ onClose, onSuccess, news: initialNews, isModal = true }: NewsEditorProps) {
+export default function NewsEditor({ onClose, onSuccess, news: initialNews, isModal = true, isFromSelectedNews = false }: NewsEditorProps) {
   const router = useRouter()
   const { user } = useAuth()
   const supabase = createClient()
@@ -94,9 +95,16 @@ export default function NewsEditor({ onClose, onSuccess, news: initialNews, isMo
 
     try {
       if (isEditMode && initialNews) {
-        // 뉴스 수정
-        const { error: updateError } = await supabase
-          .from('news')
+        // 뉴스 수정 - selected_news에서 온 경우 selected_news 테이블 업데이트
+        const tableName = isFromSelectedNews ? 'selected_news' : 'news'
+        
+        // 관리자 확인
+        const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+        const isAdmin = user.email === ADMIN_EMAIL
+        
+        // 업데이트 쿼리 생성
+        let updateQuery = supabase
+          .from(tableName)
           .update({
             title: title.trim(),
             content: content.trim(),
@@ -105,7 +113,13 @@ export default function NewsEditor({ onClose, onSuccess, news: initialNews, isMo
             updated_at: new Date().toISOString(),
           })
           .eq('id', initialNews.id)
-          .eq('user_id', user.id) // 작성자만 수정 가능
+        
+        // selected_news에서 온 경우이거나 관리자가 아닌 경우에만 user_id 조건 추가
+        if (!isFromSelectedNews && !isAdmin) {
+          updateQuery = updateQuery.eq('user_id', user.id)
+        }
+
+        const { error: updateError } = await updateQuery
 
         if (updateError) {
           throw new Error(updateError.message || '뉴스 수정에 실패했습니다.')

@@ -14,6 +14,7 @@ interface NewsDetailProps {
   news: News
   isLiked?: boolean
   currentUserId?: string
+  isFromSelectedNews?: boolean
 }
 
 function getTimeAgo(dateString: string): string {
@@ -36,7 +37,7 @@ function getTimeAgo(dateString: string): string {
   return `${diffYears}년 전`
 }
 
-export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked = false, currentUserId }: NewsDetailProps) {
+export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked = false, currentUserId, isFromSelectedNews = false }: NewsDetailProps) {
   const router = useRouter()
   const { user } = useAuth()
   const supabase = createClient()
@@ -60,6 +61,8 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
 
   const isOwner = user && news.is_manual && news.user_id === user.id
   const isAdmin = currentUserEmail === ADMIN_EMAIL
+  // selected_news에서 온 뉴스는 관리자만 수정 가능
+  const canEdit = isOwner || (isAdmin && (isFromSelectedNews || !news.is_manual))
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -74,8 +77,11 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
     if (!isAdmin) return
 
     try {
+      // selected_news에서 온 경우 selected_news 테이블 업데이트, 아니면 news 테이블 업데이트
+      const tableName = isFromSelectedNews ? 'selected_news' : 'news'
+      
       const { error } = await supabase
-        .from('news')
+        .from(tableName)
         .update({ is_pinned: !isPinned })
         .eq('id', news.id)
 
@@ -85,10 +91,14 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
 
       setIsPinned(!isPinned)
       setNews({ ...news, is_pinned: !isPinned })
+      
+      // 뉴스 목록 새로고침을 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('news-updated'))
+      
       router.refresh()
     } catch (error) {
       console.error('고정 상태 변경 오류:', error)
-      alert('고정 상태 변경에 실패했습니다.')
+      alert(`고정 상태 변경에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
     }
   }
 
@@ -152,7 +162,7 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
               {isPinned ? '📌 고정됨' : '📌 고정'}
             </button>
           )}
-          {isOwner && (
+          {canEdit && (
             <button
               onClick={() => router.push(`/news/${news.id}/edit`)}
               className="px-4 py-2 text-sm text-ok-primary hover:text-ok-dark transition-colors"

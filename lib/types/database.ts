@@ -128,3 +128,20 @@ export type NewsComment = {
   }
   replies?: NewsComment[]
 }
+
+export type CrawledNews = {
+  id: string
+  title: string
+  content: string
+  source_url?: string | null
+  source_site?: string | null
+  author_name?: string | null
+  image_url?: string | null
+  published_at?: string | null
+  uploaded_by: string
+  uploaded_at: string
+  is_published: boolean
+  published_to_news_id?: string | null
+  created_at: string
+  updated_at: string
+}

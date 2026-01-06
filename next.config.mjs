@@ -42,6 +42,82 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.chosun.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'pimg.mk.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.mk.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: 'imgnews.naver.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.naver.net',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.naver.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.yimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.yahoo.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.example.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img1.newsis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.newsis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'imgnews.naver.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'photo.jtbc.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.jtbc.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.hankyung.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.hankyung.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.hani.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.hani.co.kr',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.hankookilbo.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.hankookilbo.com',
+      },
     ],
   },
 };

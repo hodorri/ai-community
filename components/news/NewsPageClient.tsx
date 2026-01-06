@@ -10,15 +10,17 @@ import type { News } from '@/lib/types/database'
 interface NewsPageClientProps {
   newsId: string
   initialNews: News
+  isFromSelectedNews?: boolean
 }
 
-export default function NewsPageClient({ newsId, initialNews }: NewsPageClientProps) {
+export default function NewsPageClient({ newsId, initialNews, isFromSelectedNews = false }: NewsPageClientProps) {
   const router = useRouter()
   const supabase = createClient()
   const [news, setNews] = useState<News | null>(initialNews)
   const [loading, setLoading] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | undefined>(undefined)
+  const [fromSelectedNews, setFromSelectedNews] = useState(isFromSelectedNews)
 
   // 초기 뉴스 데이터에 프로필 정보가 있으면 그대로 사용
   useEffect(() => {
@@ -37,20 +39,46 @@ export default function NewsPageClient({ newsId, initialNews }: NewsPageClientPr
         const { data: { user } } = await supabase.auth.getUser()
         setCurrentUserId(user?.id)
 
-        const { data: newsData, error: newsError } = await supabase
+        // 먼저 news 테이블에서 조회
+        let { data: newsData, error: newsError } = await supabase
           .from('news')
           .select('*')
           .eq('id', newsId)
           .maybeSingle()
 
-        if (newsError) {
-          console.error('뉴스 조회 오류:', newsError)
-          return
-        }
+        let isFromSelected = false
 
-        if (!newsData) {
-          router.push('/dashboard?tab=news')
-          return
+        // news 테이블에 없으면 selected_news 테이블에서 조회
+        if (!newsData || newsError) {
+          const { data: selectedNewsData, error: selectedError } = await supabase
+            .from('selected_news')
+            .select('*')
+            .eq('id', newsId)
+            .maybeSingle()
+
+          if (selectedError || !selectedNewsData) {
+            router.push('/dashboard?tab=news')
+            return
+          }
+
+          // selected_news를 News 타입으로 변환
+          newsData = {
+            id: selectedNewsData.id,
+            title: selectedNewsData.title,
+            content: selectedNewsData.content || '',
+            source_url: selectedNewsData.source_url || null,
+            source_site: selectedNewsData.source_site || null,
+            author_name: selectedNewsData.author_name || null,
+            user_id: null,
+            image_url: selectedNewsData.image_url || null,
+            published_at: selectedNewsData.published_at || selectedNewsData.selected_at,
+            is_manual: false,
+            created_at: selectedNewsData.created_at,
+            updated_at: selectedNewsData.updated_at,
+            is_pinned: false,
+          } as any
+          isFromSelected = true
+          setFromSelectedNews(true)
         }
 
         // 좋아요 수 조회
@@ -95,7 +123,7 @@ export default function NewsPageClient({ newsId, initialNews }: NewsPageClientPr
         }
 
         // 수동 게시인 경우 프로필 정보 조회
-        if (newsData.is_manual && newsData.user_id) {
+        if (!isFromSelected && newsData.is_manual && newsData.user_id) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('email, name, nickname, avatar_url, company, team, position')
@@ -157,6 +185,7 @@ export default function NewsPageClient({ newsId, initialNews }: NewsPageClientPr
             news={news} 
             isLiked={isLiked}
             currentUserId={currentUserId}
+            isFromSelectedNews={fromSelectedNews}
           />
           <div className="px-6 sm:px-8 pb-6">
             <NewsCommentSection newsId={newsId} />
