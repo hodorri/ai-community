@@ -50,10 +50,20 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
     console.log('[크롤링] 네이버 뉴스 검색 페이지 접속 중...')
     
     // 페이지 로드 (더 긴 타임아웃)
-    await page.goto(url, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 60000 
-    })
+    try {
+      await page.goto(url, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 60000 
+      })
+    } catch (gotoError: any) {
+      console.error('[크롤링] 페이지 로드 실패:', gotoError.message)
+      if (gotoError.message.includes('timeout') || gotoError.message.includes('Navigation timeout')) {
+        throw new Error('페이지 로드 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.')
+      } else if (gotoError.message.includes('net::')) {
+        throw new Error('네트워크 연결 오류가 발생했습니다.')
+      }
+      throw gotoError
+    }
     
     // 추가 대기 시간 (JavaScript 실행 대기)
     await wait(3000)
@@ -252,12 +262,35 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
       imageUrl: undefined,
       publishedAt: new Date().toISOString(),
     }))
-  } catch (error) {
+  } catch (error: any) {
     console.error('[크롤링] 네이버 뉴스 크롤링 오류:', error)
+    
+    // 브라우저가 열려있으면 닫기
+    if (browser) {
+      try {
+        await browser.close()
+      } catch (closeError) {
+        console.error('[크롤링] 브라우저 종료 오류:', closeError)
+      }
+    }
+    
+    // 에러 타입별 처리
+    if (error?.message?.includes('timeout') || error?.message?.includes('Timeout')) {
+      console.error('[크롤링] 타임아웃 오류')
+    } else if (error?.message?.includes('net::') || error?.message?.includes('ECONNREFUSED')) {
+      console.error('[크롤링] 네트워크 연결 오류')
+    } else if (error?.message?.includes('Navigation failed')) {
+      console.error('[크롤링] 페이지 네비게이션 실패')
+    }
+    
     return []
   } finally {
     if (browser) {
-      await browser.close()
+      try {
+        await browser.close()
+      } catch (closeError) {
+        console.error('[크롤링] 브라우저 종료 오류:', closeError)
+      }
     }
   }
 }
@@ -342,10 +375,28 @@ export async function POST(request: NextRequest) {
       total: naverNews.length,
       news: newsWithDuplicateCheck,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('[크롤링] 오류:', error)
+    
+    // 에러 타입별 메시지 설정
+    let errorMessage = '크롤링 중 오류가 발생했습니다.'
+    let errorDetails = error?.message || String(error)
+    
+    if (errorDetails.includes('timeout') || errorDetails.includes('Timeout')) {
+      errorMessage = '크롤링 시간이 초과되었습니다. 네트워크 연결을 확인해주세요.'
+    } else if (errorDetails.includes('net::') || errorDetails.includes('ECONNREFUSED') || errorDetails.includes('ENOTFOUND')) {
+      errorMessage = '네트워크 연결 오류가 발생했습니다. 인터넷 연결을 확인해주세요.'
+    } else if (errorDetails.includes('Navigation failed') || errorDetails.includes('Navigation timeout')) {
+      errorMessage = '페이지 접속에 실패했습니다. 잠시 후 다시 시도해주세요.'
+    } else if (errorDetails.includes('Browser closed') || errorDetails.includes('Target closed')) {
+      errorMessage = '브라우저 연결이 끊어졌습니다. 다시 시도해주세요.'
+    }
+    
     return NextResponse.json(
-      { error: '크롤링 중 오류가 발생했습니다.', details: error instanceof Error ? error.message : String(error) },
+      { 
+        error: errorMessage, 
+        details: errorDetails 
+      },
       { status: 500 }
     )
   }

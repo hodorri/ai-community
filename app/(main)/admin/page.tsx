@@ -286,37 +286,70 @@ export default function AdminPage() {
       
       if (sessionError || !session) {
         alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
+        setCrawling(false)
         return
       }
 
-      const response = await fetch('/api/crawl-news', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-      })
+      // 타임아웃 설정 (5분)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000)
 
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        setCrawledNews(result.news || [])
-        // 중복이 아닌 항목만 자동 선택
-        const newSelected = new Set<number>()
-        result.news?.forEach((item: any, index: number) => {
-          if (!item.isDuplicate) {
-            newSelected.add(index)
-          }
+      try {
+        const response = await fetch('/api/crawl-news', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          credentials: 'include',
+          signal: controller.signal,
         })
-        setSelectedNews(newSelected)
-        alert(`크롤링 완료!\n총 ${result.total}개 기사를 수집했습니다.`)
-      } else {
-        alert('크롤링 실패: ' + (result.error || result.details || '알 수 없는 오류'))
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          // 응답이 JSON이 아닐 수 있음
+          let errorMessage = '알 수 없는 오류'
+          try {
+            const errorData = await response.json()
+            errorMessage = errorData.error || errorData.details || errorMessage
+          } catch (e) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`
+          }
+          throw new Error(errorMessage)
+        }
+
+        const result = await response.json()
+
+        if (result.success) {
+          setCrawledNews(result.news || [])
+          // 중복이 아닌 항목만 자동 선택
+          const newSelected = new Set<number>()
+          result.news?.forEach((item: any, index: number) => {
+            if (!item.isDuplicate) {
+              newSelected.add(index)
+            }
+          })
+          setSelectedNews(newSelected)
+          alert(`크롤링 완료!\n총 ${result.total}개 기사를 수집했습니다.`)
+        } else {
+          throw new Error(result.error || result.details || '크롤링 실패')
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId)
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error('크롤링 시간이 초과되었습니다. (5분)')
+        } else if (fetchError.name === 'TypeError' && fetchError.message.includes('fetch')) {
+          throw new Error('네트워크 연결 오류가 발생했습니다. 인터넷 연결을 확인해주세요.')
+        } else {
+          throw fetchError
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('크롤링 오류:', error)
-      alert('크롤링 중 오류가 발생했습니다.')
+      const errorMessage = error?.message || '크롤링 중 오류가 발생했습니다.'
+      alert(`크롤링 실패: ${errorMessage}`)
     } finally {
       setCrawling(false)
     }
