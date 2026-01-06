@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
+import chromium from '@sparticuz/chromium'
 
 export interface CrawledNewsItem {
   title: string
@@ -21,17 +22,25 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
   try {
     console.log('[크롤링] 네이버 뉴스 크롤링 시작')
     
+    // Vercel 환경 감지
+    const isVercel = process.env.VERCEL === '1'
+    
     browser = await puppeteer.launch({
       headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-      ],
+      args: isVercel 
+        ? chromium.args 
+        : [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+          ],
+      executablePath: isVercel 
+        ? await chromium.executablePath() 
+        : undefined,
     })
 
     const page = await browser.newPage()
