@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import type { News } from '@/lib/types/database'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 interface NewsDetailProps {
   news: News
   isLiked?: boolean
@@ -41,6 +43,8 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
   const [news, setNews] = useState(initialNews)
   const [isLiked, setIsLiked] = useState(initialIsLiked)
   const [likesCount, setLikesCount] = useState(news.likes_count || 0)
+  const [isPinned, setIsPinned] = useState(news.is_pinned || false)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
 
   const timeAgo = news.published_at 
     ? getTimeAgo(news.published_at)
@@ -55,6 +59,38 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
   const authorInitial = displayName.charAt(0).toUpperCase()
 
   const isOwner = user && news.is_manual && news.user_id === user.id
+  const isAdmin = currentUserEmail === ADMIN_EMAIL
+
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserEmail(user?.email || null)
+    }
+    
+    fetchCurrentUser()
+  }, [supabase])
+
+  const handleTogglePin = async () => {
+    if (!isAdmin) return
+
+    try {
+      const { error } = await supabase
+        .from('news')
+        .update({ is_pinned: !isPinned })
+        .eq('id', news.id)
+
+      if (error) {
+        throw error
+      }
+
+      setIsPinned(!isPinned)
+      setNews({ ...news, is_pinned: !isPinned })
+      router.refresh()
+    } catch (error) {
+      console.error('고정 상태 변경 오류:', error)
+      alert('고정 상태 변경에 실패했습니다.')
+    }
+  }
 
   const handleLike = async () => {
     if (!currentUserId) {
@@ -102,14 +138,29 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">📰 최신 AI 소식</span>
         </div>
-        {isOwner && (
-          <button
-            onClick={() => router.push(`/news/${news.id}/edit`)}
-            className="px-4 py-2 text-sm text-ok-primary hover:text-ok-dark transition-colors"
-          >
-            내용 수정하기
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={handleTogglePin}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                isPinned
+                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={isPinned ? '고정 해제' : '상단 고정'}
+            >
+              {isPinned ? '📌 고정됨' : '📌 고정'}
+            </button>
+          )}
+          {isOwner && (
+            <button
+              onClick={() => router.push(`/news/${news.id}/edit`)}
+              className="px-4 py-2 text-sm text-ok-primary hover:text-ok-dark transition-colors"
+            >
+              내용 수정하기
+            </button>
+          )}
+        </div>
       </div>
 
       {/* 작성자 정보 */}

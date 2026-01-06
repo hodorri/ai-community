@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import puppeteer from 'puppeteer'
 
-interface CrawledNewsItem {
+export interface CrawledNewsItem {
   title: string
   content: string
   sourceUrl: string
@@ -11,118 +12,336 @@ interface CrawledNewsItem {
   publishedAt?: string
 }
 
-// 크롤링 함수 (실제 구현은 각 사이트 구조에 맞게 수정 필요)
-async function crawlAitimesCom(): Promise<CrawledNewsItem[]> {
+// 네이버 뉴스 크롤링 함수
+async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
+  let browser
   try {
-    // TODO: 실제 크롤링 로직 구현
-    // Puppeteer나 Cheerio를 사용하여 크롤링
-    // 현재는 예시 데이터 반환
-    return []
+    console.log('[크롤링] 네이버 뉴스 크롤링 시작')
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+      ],
+    })
+
+    const page = await browser.newPage()
+    
+    // User-Agent 설정 (일반 브라우저처럼 보이게)
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    await page.setViewport({ width: 1920, height: 1080 })
+    
+    // 추가 헤더 설정
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    })
+    
+    const url = "https://search.naver.com/search.naver?ssc=tab.news.all&where=news&sm=tab_jum&query=AI"
+    console.log('[크롤링] 네이버 뉴스 검색 페이지 접속 중...')
+    
+    // 페이지 로드 (더 긴 타임아웃)
+    await page.goto(url, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 60000 
+    })
+    
+    // 추가 대기 시간 (JavaScript 실행 대기)
+    await page.waitForTimeout(3000)
+    
+    // 페이지 로딩 대기 (더 긴 타임아웃)
+    console.log('[크롤링] 페이지 로딩 대기 중...')
+    try {
+      // 여러 셀렉터 시도
+      await page.waitForSelector('span.sds-comps-text-type-headline1', { timeout: 20000 })
+      console.log('[크롤링] 페이지 로딩 완료')
+    } catch (e) {
+      console.error('[크롤링] 셀렉터를 찾을 수 없습니다. 대체 셀렉터 시도 중...')
+      // 대체 셀렉터 시도
+      try {
+        await page.waitForSelector('a.news_tit, .news_tit, [class*="news"]', { timeout: 5000 })
+        console.log('[크롤링] 대체 셀렉터로 페이지 발견')
+      } catch (e2) {
+        console.error('[크롤링] 모든 셀렉터 실패:', e2)
+        // 페이지 스크린샷 저장 (디버깅용)
+        const screenshot = await page.screenshot({ encoding: 'base64' })
+        console.log('[크롤링] 스크린샷 길이:', screenshot ? screenshot.length : 0)
+        return []
+      }
+    }
+    
+    // 무한 스크롤 로딩 (5번 반복, 1초 대기)
+    console.log('[크롤링] 스크롤하여 추가 기사 로딩 중...')
+    for (let i = 0; i < 5; i++) {
+      await page.evaluate(() => {
+        window.scrollTo(0, document.body.scrollHeight)
+      })
+      await page.waitForTimeout(1000) // 0.5초 -> 1초로 증가
+      console.log(`[크롤링] 스크롤 ${i+1}/5 완료`)
+      
+      // 스크롤 후 추가 대기 (동적 콘텐츠 로딩 대기)
+      await page.waitForTimeout(500)
+    }
+    
+    // 기사 정보 추출 (Python 코드와 동일한 로직)
+    console.log('[크롤링] 기사 수집 중...')
+    
+    // 먼저 요소 개수 확인
+    const titleCount = await page.evaluate(() => {
+      return document.querySelectorAll('span.sds-comps-text-type-headline1').length
+    })
+    console.log(`[크롤링] 발견된 제목 요소 개수: ${titleCount}`)
+    
+    if (titleCount === 0) {
+      console.log('[크롤링] 제목 요소를 찾을 수 없습니다. 페이지 구조 확인 중...')
+      const pageTitle = await page.title()
+      console.log('[크롤링] 페이지 제목:', pageTitle)
+      const currentUrl = page.url()
+      console.log('[크롤링] 현재 URL:', currentUrl)
+      
+      // 페이지 내용 일부 확인
+      const bodyText = await page.evaluate(() => document.body.innerText)
+      console.log('[크롤링] 페이지 본문 길이:', bodyText.length)
+      console.log('[크롤링] 페이지 본문 일부:', bodyText.substring(0, 500))
+      
+      // 다른 가능한 셀렉터 확인
+      const altSelectors = await page.evaluate(() => {
+        return {
+          newsTit: document.querySelectorAll('a.news_tit').length,
+          newsWrap: document.querySelectorAll('.news_wrap').length,
+          newsArea: document.querySelectorAll('.news_area').length,
+          headline1: document.querySelectorAll('span.sds-comps-text-type-headline1').length,
+          allLinks: document.querySelectorAll('a[href*="news.naver.com"]').length,
+        }
+      })
+      console.log('[크롤링] 대체 셀렉터 결과:', altSelectors)
+      
+      return []
+    }
+    
+    const articles = await page.evaluate(() => {
+      const titleElements = document.querySelectorAll('span.sds-comps-text-type-headline1')
+      
+      const results: Array<{
+        title: string
+        content: string
+        link: string
+      }> = []
+      const seenLinks = new Set<string>()
+      
+      titleElements.forEach((titleSpan, idx) => {
+        try {
+          // 제목 추출
+          const title = titleSpan.textContent?.trim() || ''
+          if (!title) return
+          
+          // 제목을 감싸는 가장 가까운 a 태그 찾기 (XPath 대신 DOM 순회)
+          let aTag: HTMLAnchorElement | null = null
+          let current: HTMLElement | null = titleSpan as HTMLElement
+          
+          // ancestor::a[1] 구현
+          while (current && !aTag) {
+            if (current.tagName === 'A') {
+              aTag = current as HTMLAnchorElement
+              break
+            }
+            current = current.parentElement
+          }
+          
+          // 대안: data-heatmap-target=".tit" 속성을 가진 a 태그 찾기
+          if (!aTag || !aTag.href) {
+            current = titleSpan as HTMLElement
+            while (current && !aTag) {
+              if (current.tagName === 'A' && current.getAttribute('data-heatmap-target') === '.tit') {
+                aTag = current as HTMLAnchorElement
+                break
+              }
+              current = current.parentElement
+            }
+          }
+          
+          if (!aTag || !aTag.href) return
+          
+          const link = aTag.href
+          if (seenLinks.has(link)) return
+          seenLinks.add(link)
+          
+          // 요약 추출 (같은 카드 내에서)
+          let content = ""
+          try {
+            // 카드 컨테이너 찾기: ./ancestor::div[contains(@class,'sds-comps-base-layout')][1]
+            let cardContainer: HTMLElement | null = null
+            current = aTag
+            
+            // ancestor::div[contains(@class,'sds-comps-base-layout')][1] 구현
+            while (current && !cardContainer) {
+              if (current.tagName === 'DIV' && current.className && typeof current.className === 'string' && current.className.includes('sds-comps-base-layout')) {
+                cardContainer = current
+                break
+              }
+              current = current.parentElement
+            }
+            
+            // 한 단계 더 올라가서 재시도
+            if (!cardContainer) {
+              const parent = aTag.parentElement
+              if (parent) {
+                current = parent
+                while (current && !cardContainer) {
+                  if (current.tagName === 'DIV' && current.className && typeof current.className === 'string' && current.className.includes('sds-comps-base-layout')) {
+                    cardContainer = current
+                    break
+                  }
+                  current = current.parentElement
+                }
+              }
+            }
+            
+            if (cardContainer) {
+              // 카드 내에서 body1 span 찾기
+              const bodySpan = cardContainer.querySelector('span.sds-comps-text-type-body1')
+              if (bodySpan) {
+                content = bodySpan.textContent?.trim() || ''
+              }
+            }
+          } catch (e) {
+            // 요약이 없으면 빈 문자열로 둠
+            content = ""
+          }
+          
+          // 기사 정보 저장
+          results.push({
+            title,
+            content,
+            link,
+          })
+        } catch (e) {
+          // 개별 기사 파싱 실패 시 continue
+        }
+      })
+      
+      return results
+    })
+    
+    console.log(`[크롤링] 네이버 뉴스 ${articles.length}개 기사 수집`)
+    
+    if (articles.length === 0) {
+      console.log('[크롤링] 기사가 수집되지 않았습니다. 페이지 구조를 확인합니다...')
+      // 디버깅: 페이지 스크린샷 또는 HTML 일부 확인
+      const pageContent = await page.content()
+      console.log('[크롤링] 페이지 HTML 길이:', pageContent.length)
+      const hasHeadline = pageContent.includes('sds-comps-text-type-headline1')
+      console.log('[크롤링] headline1 클래스 존재:', hasHeadline)
+    }
+    
+    // 상위 20개만 반환
+    return articles.slice(0, 20).map((article) => ({
+      title: article.title,
+      content: article.content,
+      sourceUrl: article.link,
+      sourceSite: '네이버 뉴스',
+      imageUrl: undefined,
+      publishedAt: new Date().toISOString(),
+    }))
   } catch (error) {
-    console.error('AITimes.com 크롤링 오류:', error)
+    console.error('[크롤링] 네이버 뉴스 크롤링 오류:', error)
     return []
+  } finally {
+    if (browser) {
+      await browser.close()
+    }
   }
 }
 
-async function crawlAitimesKr(): Promise<CrawledNewsItem[]> {
-  try {
-    // TODO: 실제 크롤링 로직 구현
-    return []
-  } catch (error) {
-    console.error('AITimes.kr 크롤링 오류:', error)
-    return []
-  }
-}
-
-async function crawlKoraiaOrg(): Promise<CrawledNewsItem[]> {
-  try {
-    // TODO: 실제 크롤링 로직 구현
-    return []
-  } catch (error) {
-    console.error('KorAI.org 크롤링 오류:', error)
-    return []
-  }
-}
-
+// 크롤링만 수행하고 결과 반환 (저장하지 않음)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Authorization 헤더에서 토큰 확인
+    const authHeader = request.headers.get('authorization')
+    let user = null
+    let authError = null
 
-    if (authError || !user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      // 토큰으로 직접 사용자 확인
+      const supabase = await createClient()
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token)
+      
+      if (!tokenError && tokenUser) {
+        user = tokenUser
+      } else {
+        authError = tokenError
+      }
+    } else {
+      // 쿠키에서 인증 정보 가져오기
+      const supabase = await createClient()
+      const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser()
+      user = cookieUser
+      authError = cookieError
     }
 
-    // 관리자만 크롤링 실행 가능 (선택사항)
+    if (authError) {
+      console.error('[크롤링] 인증 오류:', authError)
+      return NextResponse.json({ error: '인증 오류: ' + authError.message }, { status: 401 })
+    }
+
+    if (!user) {
+      console.error('[크롤링] 사용자 정보 없음')
+      return NextResponse.json({ error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' }, { status: 401 })
+    }
+
+    console.log('[크롤링] 현재 사용자:', user.email)
+
+    // 관리자 확인
     const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
-    // if (user.email !== ADMIN_EMAIL) {
-    //   return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
-    // }
+    if (!ADMIN_EMAIL) {
+      console.error('[크롤링] ADMIN_EMAIL이 설정되지 않았습니다.')
+      return NextResponse.json({ error: '관리자 설정이 필요합니다.' }, { status: 500 })
+    }
+
+    if (user.email !== ADMIN_EMAIL) {
+      console.log(`[크롤링] 관리자 권한 없음: ${user.email} !== ${ADMIN_EMAIL}`)
+      return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
+    }
 
     console.log('[크롤링] 시작')
 
-    // 각 사이트에서 크롤링
-    const [aitimesCom, aitimesKr, koraia] = await Promise.all([
-      crawlAitimesCom(),
-      crawlAitimesKr(),
-      crawlKoraiaOrg(),
-    ])
+    // 네이버 뉴스 크롤링
+    const naverNews = await crawlNaverNews()
 
-    const allNews = [
-      ...aitimesCom.slice(0, 5),
-      ...aitimesKr.slice(0, 5),
-      ...koraia.slice(0, 5),
-    ]
+    console.log(`[크롤링] 총 ${naverNews.length}개 뉴스 수집`)
 
-    console.log(`[크롤링] 총 ${allNews.length}개 뉴스 수집`)
-
-    // 중복 체크 및 저장
-    const savedNews = []
-    for (const newsItem of allNews) {
-      // source_url이 이미 존재하는지 확인
-      const { data: existing } = await supabase
-        .from('news')
-        .select('id')
-        .eq('source_url', newsItem.sourceUrl)
-        .maybeSingle()
-
-      if (!existing) {
-        // 새로운 뉴스 저장
-        const { data, error } = await supabase
+    // 중복 체크 (이미 저장된 기사인지 확인)
+    const newsWithDuplicateCheck = await Promise.all(
+      naverNews.map(async (item) => {
+        const { data: existing } = await supabase
           .from('news')
-          .insert({
-            title: newsItem.title,
-            content: newsItem.content,
-            source_url: newsItem.sourceUrl,
-            source_site: newsItem.sourceSite,
-            author_name: newsItem.authorName || null,
-            image_url: newsItem.imageUrl || null,
-            published_at: newsItem.publishedAt || new Date().toISOString(),
-            is_manual: false,
-          })
-          .select()
-          .single()
+          .select('id')
+          .eq('source_url', item.sourceUrl)
+          .maybeSingle()
 
-        if (!error && data) {
-          savedNews.push(data)
-        } else {
-          console.error(`[크롤링] 뉴스 저장 실패:`, error)
+        return {
+          ...item,
+          isDuplicate: !!existing,
         }
-      }
-    }
-
-    console.log(`[크롤링] ${savedNews.length}개 뉴스 저장 완료`)
+      })
+    )
 
     return NextResponse.json({
       success: true,
-      total: allNews.length,
-      saved: savedNews.length,
-      skipped: allNews.length - savedNews.length,
+      total: naverNews.length,
+      news: newsWithDuplicateCheck,
     })
   } catch (error) {
     console.error('[크롤링] 오류:', error)
     return NextResponse.json(
-      { error: '크롤링 중 오류가 발생했습니다.' },
+      { error: '크롤링 중 오류가 발생했습니다.', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }

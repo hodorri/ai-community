@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
-import NewsListItem from './NewsListItem'
-import FeaturedNewsItem from './FeaturedNewsItem'
+import PinnedNewsItem from './PinnedNewsItem'
+import NewsListRowItem from './NewsListRowItem'
 import NewsEditor from './NewsEditor'
 import type { News } from '@/lib/types/database'
 
@@ -26,20 +26,20 @@ export default function NewsContent() {
       setLoading(true)
       setError(null)
 
-      // 뉴스 조회 (published_at 또는 created_at 기준 최신순)
-      const { data: newsData, error: newsError } = await supabase
+      // 모든 뉴스 조회 (크롤링된 글 + 개별 작성 글 모두 포함)
+      const { data: allNewsData, error: newsError } = await supabase
         .from('news')
         .select('*')
         .order('published_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(100)
 
       if (newsError) {
         console.error('뉴스 조회 오류:', newsError)
         throw new Error(newsError.message || '뉴스를 불러오는데 실패했습니다.')
       }
 
-      if (!newsData || newsData.length === 0) {
+      if (!allNewsData || allNewsData.length === 0) {
         setNews([])
         setLoading(false)
         return
@@ -47,7 +47,7 @@ export default function NewsContent() {
 
       // 각 뉴스의 프로필 정보, 좋아요 수, 댓글 수 조회
       const newsWithCounts = await Promise.all(
-        newsData.map(async (item) => {
+        allNewsData.map(async (item) => {
           // 좋아요 수 조회
           const [likesResult] = await Promise.all([
             supabase
@@ -125,6 +125,12 @@ export default function NewsContent() {
     )
   }
 
+  // 고정 게시물과 일반 게시물 분리
+  // 고정 게시물: is_pinned가 true인 것만 (최대 3개)
+  const pinnedNews = news.filter(item => item.is_pinned === true).slice(0, 3)
+  // 일반 게시물: is_pinned가 false이거나 null/undefined인 모든 게시물 (크롤링된 글 + 개별 작성 글 모두 포함)
+  const regularNews = news.filter(item => item.is_pinned !== true)
+
   return (
     <div>
       {/* 뉴스 목록 */}
@@ -137,16 +143,20 @@ export default function NewsContent() {
         </div>
       ) : (
         <div className="space-y-8">
-          {/* 피처드 아티클 (첫 번째 뉴스) */}
-          {news.length > 0 && (
-            <FeaturedNewsItem news={news[0]} />
+          {/* 고정 게시물 3개 병렬 표시 */}
+          {pinnedNews.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {pinnedNews.map((item) => (
+                <PinnedNewsItem key={item.id} news={item} />
+              ))}
+            </div>
           )}
 
-          {/* 그리드 레이아웃 (나머지 뉴스들) */}
-          {news.length > 1 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {news.slice(1).map((item) => (
-                <NewsListItem key={item.id} news={item} />
+          {/* 일반 게시물 목록 (PostListItem 스타일) */}
+          {regularNews.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {regularNews.map((item) => (
+                <NewsListRowItem key={item.id} news={item} />
               ))}
             </div>
           )}
