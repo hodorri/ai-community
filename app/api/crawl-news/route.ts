@@ -12,6 +12,9 @@ export interface CrawledNewsItem {
   publishedAt?: string
 }
 
+// 대기 헬퍼 함수
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 // 네이버 뉴스 크롤링 함수
 async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
   let browser
@@ -53,7 +56,7 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
     })
     
     // 추가 대기 시간 (JavaScript 실행 대기)
-    await page.waitForTimeout(3000)
+    await wait(3000)
     
     // 페이지 로딩 대기 (더 긴 타임아웃)
     console.log('[크롤링] 페이지 로딩 대기 중...')
@@ -82,11 +85,11 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
       await page.evaluate(() => {
         window.scrollTo(0, document.body.scrollHeight)
       })
-      await page.waitForTimeout(1000) // 0.5초 -> 1초로 증가
+      await wait(1000) // 0.5초 -> 1초로 증가
       console.log(`[크롤링] 스크롤 ${i+1}/5 완료`)
       
       // 스크롤 후 추가 대기 (동적 콘텐츠 로딩 대기)
-      await page.waitForTimeout(500)
+      await wait(500)
     }
     
     // 기사 정보 추출 (Python 코드와 동일한 로직)
@@ -262,6 +265,9 @@ async function crawlNaverNews(): Promise<CrawledNewsItem[]> {
 // 크롤링만 수행하고 결과 반환 (저장하지 않음)
 export async function POST(request: NextRequest) {
   try {
+    // Supabase 클라이언트 생성
+    const supabase = await createClient()
+    
     // Authorization 헤더에서 토큰 확인
     const authHeader = request.headers.get('authorization')
     let user = null
@@ -270,7 +276,6 @@ export async function POST(request: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       // 토큰으로 직접 사용자 확인
-      const supabase = await createClient()
       const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token)
       
       if (!tokenError && tokenUser) {
@@ -280,7 +285,6 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // 쿠키에서 인증 정보 가져오기
-      const supabase = await createClient()
       const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser()
       user = cookieUser
       authError = cookieError
