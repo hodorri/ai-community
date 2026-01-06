@@ -992,7 +992,7 @@ export default function AdminPage() {
       return
     }
 
-    if (!confirm('selected_news의 모든 항목의 작성자명을 "읏맨"으로, 이미지를 업로드한 이미지로 일괄 변경하시겠습니까?')) return
+    if (!confirm('selected_news의 모든 항목의 작성자명을 \'읏맨\'으로, 이미지를 업로드한 이미지로 일괄 변경하시겠습니까?')) return
 
     try {
       setBulkUpdating(true)
@@ -2269,7 +2269,7 @@ export default function AdminPage() {
                   disabled
                   className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">모든 항목의 작성자명이 "읏맨"으로 변경됩니다.</p>
+                <p className="text-xs text-gray-500 mt-1">모든 항목의 작성자명이 &quot;읏맨&quot;으로 변경됩니다.</p>
               </div>
 
               <div>
