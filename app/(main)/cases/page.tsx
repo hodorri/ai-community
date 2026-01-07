@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
+import { useRouter } from 'next/navigation'
 import PostListItem from '@/components/post/PostListItem'
 import Link from 'next/link'
 
@@ -10,6 +11,7 @@ const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 export default function CasesPage() {
   const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -411,7 +413,31 @@ export default function CasesPage() {
     }
   }, [authLoading])
 
-  if (loading || authLoading) {
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">로그인이 필요합니다.</p>
+          <Link
+            href="/login"
+            className="inline-block bg-ok-primary text-white px-6 py-3 rounded-full font-semibold hover:bg-ok-dark transition-colors"
+          >
+            로그인하기
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

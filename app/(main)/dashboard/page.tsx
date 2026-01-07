@@ -220,14 +220,6 @@ function DiaryContent() {
     )
   }
 
-  if (posts.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">아직 작성된 게시글이 없습니다.</p>
-      </div>
-    )
-  }
-
   return (
     <div>
       {/* 페이지 제목 및 설명 */}
@@ -239,22 +231,26 @@ function DiaryContent() {
       </div>
 
       {/* 글쓰기 버튼 */}
-      {user && (
-        <div className="mb-6 flex justify-end">
-          <Link
-            href="/post/new"
-            className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
-          >
-            글쓰기
-          </Link>
+      <div className="mb-6 flex justify-end">
+        <Link
+          href="/post/new"
+          className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+        >
+          글쓰기
+        </Link>
+      </div>
+
+      {posts.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+          <p className="text-gray-500">아직 작성된 게시글이 없습니다.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {posts.map((post: any) => (
+            <PostListItem key={post.id} post={post} />
+          ))}
         </div>
       )}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {posts.map((post: any) => (
-          <PostListItem key={post.id} post={post} />
-        ))}
-      </div>
     </div>
   )
 }

@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         })
         .eq('id', userId)
         .select()
-        .single()
 
       if (error) {
         console.error('[API] 프로필 업데이트 오류:', error)
@@ -92,7 +91,16 @@ export async function POST(request: NextRequest) {
           details: error.message 
         }, { status: 500 })
       }
-      result = data
+
+      if (!data || data.length === 0) {
+        console.error('[API] 프로필 업데이트 결과 없음')
+        return NextResponse.json({ 
+          error: '프로필 업데이트 결과를 찾을 수 없습니다.',
+          details: '업데이트는 성공했지만 결과를 가져오지 못했습니다.'
+        }, { status: 500 })
+      }
+
+      result = data[0]
     } else {
       // 생성
       console.log('[API] 프로필 생성 시도')
@@ -109,7 +117,6 @@ export async function POST(request: NextRequest) {
           status: 'pending',
         })
         .select()
-        .single()
 
       if (error) {
         console.error('[API] 프로필 생성 오류:', error)
@@ -118,7 +125,16 @@ export async function POST(request: NextRequest) {
           details: error.message 
         }, { status: 500 })
       }
-      result = data
+
+      if (!data || data.length === 0) {
+        console.error('[API] 프로필 생성 결과 없음')
+        return NextResponse.json({ 
+          error: '프로필 생성 결과를 찾을 수 없습니다.',
+          details: '생성은 성공했지만 결과를 가져오지 못했습니다.'
+        }, { status: 500 })
+      }
+
+      result = data[0]
     }
 
     console.log('[API] 프로필 저장 성공:', result)

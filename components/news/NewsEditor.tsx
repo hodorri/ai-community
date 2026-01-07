@@ -277,19 +277,25 @@ export default function NewsEditor({ onClose, onSuccess, news: initialNews, isMo
                               : 'border-gray-200 hover:border-ok-primary/50'
                           }`}
                         >
-                          <div className="relative w-full h-full">
-                            <Image
-                              src={url}
-                              alt={`이미지 ${index + 1}`}
-                              fill
-                              className="object-cover"
-                              sizes="(max-width: 768px) 33vw, 25vw"
-                              unoptimized
-                              onError={() => {
-                                console.error('이미지 로드 오류:', url)
-                              }}
-                            />
-                          </div>
+                          <img
+                            src={url}
+                            alt={`이미지 ${index + 1}`}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error('이미지 로드 오류:', url)
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                              // 에러 시 대체 텍스트 표시
+                              const parent = target.parentElement
+                              if (parent && !parent.querySelector('.error-message')) {
+                                const errorDiv = document.createElement('div')
+                                errorDiv.className = 'error-message absolute inset-0 flex items-center justify-center text-gray-400 text-xs'
+                                errorDiv.textContent = '이미지 로드 실패'
+                                parent.appendChild(errorDiv)
+                              }
+                            }}
+                            loading="lazy"
+                          />
                           {imageUrl === url && (
                             <div className="absolute inset-0 bg-ok-primary/20 flex items-center justify-center z-10 pointer-events-none">
                               <div className="bg-ok-primary text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">

@@ -76,22 +76,41 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
           .eq('id', caseId)
           .single()
 
-        if (error) throw error
+        if (error) {
+          console.error('[CaseEditClient] 데이터 조회 오류:', error)
+          throw error
+        }
         if (!data) throw new Error('AI 활용사례를 찾을 수 없습니다.')
 
+        console.log('[CaseEditClient] 전체 데이터:', data)
+        console.log('[CaseEditClient] ai_tools 값:', data.ai_tools)
+        console.log('[CaseEditClient] usage_effects 값:', data.usage_effects)
+        console.log('[CaseEditClient] submission_format 값:', data.submission_format)
+
         setForm({
-          ...form,
-          ...data,
-          title: data.title || '',
-          content: data.content || '',
-          author_name: data.author_name || '',
-          ai_engineer_cohort: data.ai_engineer_cohort || '',
+          title: data.title ?? '',
+          content: data.content ?? '',
+          author_name: data.author_name ?? '',
+          ai_engineer_cohort: data.ai_engineer_cohort ?? '',
+          ai_tools: data.ai_tools ?? '',
+          leading_role: data.leading_role ?? '',
+          activity_details: data.activity_details ?? '',
+          ai_usage_level: data.ai_usage_level ?? '',
+          ai_usage_evaluation_reason: data.ai_usage_evaluation_reason ?? '',
+          output_name: data.output_name ?? '',
+          development_background: data.development_background ?? '',
+          features: data.features ?? '',
+          usage_effects: data.usage_effects ?? '',
+          development_level_evaluation_reason: data.development_level_evaluation_reason ?? '',
+          submission_format: data.submission_format ?? '',
           attached_file_url: data.attached_file_url || data.source_url || '',
-          attached_file_mime: data.attached_file_mime || '',
-          attached_file_name: data.attached_file_name || '',
-          attached_file_size: data.attached_file_size || '',
-          source_url: data.source_url || '',
+          attached_file_mime: data.attached_file_mime ?? '',
+          attached_file_name: data.attached_file_name ?? '',
+          attached_file_size: data.attached_file_size ?? '',
+          source_url: data.source_url ?? '',
         })
+
+        console.log('[CaseEditClient] setForm 후 form.ai_tools:', data.ai_tools ?? '')
       } catch (e) {
         console.error('AI 활용사례 편집 로드 오류:', e)
       } finally {
@@ -108,21 +127,70 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
     return url || null
   }, [form.attached_file_url])
 
-  const onUploadImage = async (file: File) => {
+  const onUploadFile = async (file: File) => {
     try {
       setUploading(true)
+      
+      // 사용자 인증 확인 및 세션 토큰 가져오기
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (!user || userError) {
+        alert('로그인이 필요합니다. 페이지를 새로고침한 후 다시 시도해주세요.')
+        return
+      }
+
+      // 세션 토큰 가져오기
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      if (!session || sessionError) {
+        alert('세션이 만료되었습니다. 다시 로그인해주세요.')
+        return
+      }
+
       const fd = new FormData()
       fd.append('file', file)
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: fd,
-      })
+      // Authorization 헤더에 토큰 추가
+      const headers: HeadersInit = {}
+      if (session.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`
+      }
 
-      const result = await res.json().catch(() => ({}))
+      let res: Response
+      try {
+        res = await fetch('/api/upload', {
+          method: 'POST',
+          credentials: 'include',
+          headers,
+          body: fd,
+        })
+      } catch (fetchError) {
+        console.error('Fetch 오류:', fetchError)
+        const errorMessage = fetchError instanceof Error 
+          ? `네트워크 오류: ${fetchError.message}` 
+          : '네트워크 연결에 실패했습니다. 인터넷 연결을 확인하고 다시 시도해주세요.'
+        alert(`파일 업로드 실패: ${errorMessage}`)
+        throw new Error(errorMessage)
+      }
+
+      let result: any = {}
+      try {
+        result = await res.json()
+      } catch (jsonError) {
+        console.error('JSON 파싱 오류:', jsonError)
+        const errorMessage = `서버 응답을 읽을 수 없습니다. (HTTP ${res.status})`
+        alert(`파일 업로드 실패: ${errorMessage}`)
+        throw new Error(errorMessage)
+      }
+
       if (!res.ok) {
-        throw new Error(result.error || `HTTP ${res.status}`)
+        const errorMessage = result.error || `HTTP ${res.status}: 파일 업로드에 실패했습니다.`
+        console.error('파일 업로드 오류:', errorMessage, result)
+        console.error('응답 상태:', res.status, res.statusText)
+        alert(`파일 업로드 실패: ${errorMessage}`)
+        throw new Error(errorMessage)
+      }
+
+      if (!result.url) {
+        throw new Error('업로드된 파일의 URL을 받지 못했습니다.')
       }
 
       setForm((prev: any) => ({
@@ -132,6 +200,10 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
         attached_file_name: file.name || prev.attached_file_name,
         attached_file_size: formatBytes(file.size) || prev.attached_file_size,
       }))
+    } catch (error) {
+      console.error('파일 업로드 오류:', error)
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
+      alert(`파일 업로드 실패: ${errorMessage}`)
     } finally {
       setUploading(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -291,11 +363,16 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">AI활용수준</label>
-              <input
+              <select
                 value={form.ai_usage_level || ''}
                 onChange={(e) => setForm((p: any) => ({ ...p, ai_usage_level: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ok-primary"
+              >
+                <option value="">선택하세요</option>
+                <option value="기초">기초</option>
+                <option value="중급">중급</option>
+                <option value="고급">고급</option>
+              </select>
             </div>
           </div>
 
@@ -342,27 +419,27 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
         {/* 첨부파일 */}
         <div className="border-t pt-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">첨부파일 (링크/이미지)</h2>
+            <h2 className="text-lg font-semibold text-gray-900">첨부파일</h2>
             <div className="flex gap-2">
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="*/*"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) onUploadImage(file)
+                  if (file) onUploadFile(file)
                 }}
                 disabled={uploading}
-                id="case-attach-image"
+                id="case-attach-file"
               />
               <label
-                htmlFor="case-attach-image"
+                htmlFor="case-attach-file"
                 className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
                   uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
               >
-                {uploading ? '업로드 중...' : '이미지 업로드'}
+                {uploading ? '업로드 중...' : '파일 업로드'}
               </label>
             </div>
           </div>

@@ -4,11 +4,40 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Authorization 헤더에서 토큰 확인
+    const authHeader = request.headers.get('authorization')
+    let user = null
+    let authError = null
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      // 토큰으로 직접 사용자 확인
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token)
+      
+      if (!tokenError && tokenUser) {
+        user = tokenUser
+      } else {
+        authError = tokenError
+      }
+    } else {
+      // 쿠키에서 인증 정보 가져오기
+      const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser()
+      user = cookieUser
+      authError = cookieError
+    }
+
+    if (authError) {
+      console.error('[파일 업로드] 인증 오류:', authError)
+      return NextResponse.json({ error: `인증 오류: ${authError.message}` }, { status: 401 })
+    }
 
     if (!user) {
-      return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
+      console.error('[파일 업로드] 사용자 정보 없음')
+      return NextResponse.json({ error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' }, { status: 401 })
     }
+
+    console.log('[파일 업로드] 인증된 사용자:', user.email)
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -17,27 +46,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 })
     }
 
-    // 파일 크기 제한 (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: '파일 크기는 5MB 이하여야 합니다.' }, { status: 400 })
+    // 빈 파일 체크
+    if (file.size === 0) {
+      return NextResponse.json({ error: '빈 파일은 업로드할 수 없습니다.' }, { status: 400 })
     }
 
-    // 파일 타입 검증
-    if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: '이미지 파일만 업로드 가능합니다.' }, { status: 400 })
+    // 파일 크기 제한 (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: '파일 크기는 50MB 이하여야 합니다.' }, { status: 400 })
     }
 
-    const fileExt = file.name.split('.').pop()
+    // 파일 확장자 추출 (확장자가 없어도 업로드 가능하도록 처리)
+    const fileExt = file.name.includes('.') ? file.name.split('.').pop() : 'file'
     const fileName = `${user.id}/${Date.now()}.${fileExt}`
     const fileBuffer = await file.arrayBuffer()
 
-    // 프로필 이미지용 avatars 버킷 사용
+    // 파일 업로드용 버킷 사용 (avatars 버킷을 파일 저장소로도 사용)
     const bucketName = 'avatars'
+
+    // contentType이 없거나 빈 문자열인 경우 'application/octet-stream'으로 설정
+    const contentType = file.type || 'application/octet-stream'
 
     const { data, error } = await supabase.storage
       .from(bucketName)
       .upload(fileName, fileBuffer, {
-        contentType: file.type,
+        contentType: contentType,
         upsert: false,
       })
 
@@ -51,13 +84,22 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    if (!data) {
+      return NextResponse.json({ error: '파일 업로드 데이터를 받지 못했습니다.' }, { status: 500 })
+    }
+
     const { data: { publicUrl } } = supabase.storage
       .from(bucketName)
       .getPublicUrl(data.path)
 
+    if (!publicUrl) {
+      return NextResponse.json({ error: '파일 URL을 생성하지 못했습니다.' }, { status: 500 })
+    }
+
     return NextResponse.json({ url: publicUrl })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+    return NextResponse.json({ error: `서버 오류가 발생했습니다: ${errorMessage}` }, { status: 500 })
   }
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/useAuth'
+import Link from 'next/link'
 import CaseDetail from '@/components/cases/CaseDetail'
 import CaseCommentSection from '@/components/cases/CaseCommentSection'
 
@@ -11,6 +13,7 @@ interface CasePageClientProps {
 }
 
 export default function CasePageClient({ caseId }: CasePageClientProps) {
+  const { user, loading: authLoading } = useAuth()
   const [caseData, setCaseData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -18,13 +21,21 @@ export default function CasePageClient({ caseId }: CasePageClientProps) {
   const supabase = createClient()
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+      return
+    }
+  }, [user, authLoading, router])
+
+  useEffect(() => {
     async function fetchCase() {
+      if (!user) return
+
       try {
         setLoading(true)
 
         // 현재 사용자 ID 가져오기
-        const { data: { user } } = await supabase.auth.getUser()
-        setCurrentUserId(user?.id || null)
+        setCurrentUserId(user.id)
 
         // AI 활용사례 조회
         const { data, error } = await supabase
@@ -71,8 +82,34 @@ export default function CasePageClient({ caseId }: CasePageClientProps) {
       }
     }
 
-    fetchCase()
-  }, [caseId, router, supabase])
+    if (user) {
+      fetchCase()
+    }
+  }, [caseId, user, router, supabase])
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-gray-500">로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600 mb-4">로그인이 필요합니다.</p>
+          <Link
+            href="/login"
+            className="inline-block bg-ok-primary text-white px-6 py-3 rounded-full font-semibold hover:bg-ok-dark transition-colors"
+          >
+            로그인하기
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
