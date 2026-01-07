@@ -7,6 +7,8 @@ export type Post = {
   is_pinned?: boolean
   created_at: string
   updated_at: string
+  author_name?: string | null
+  ai_engineer_cohort?: string | null
   user?: {
     email: string
   }
