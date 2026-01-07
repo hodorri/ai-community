@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [name, setName] = useState('')
   const [nickname, setNickname] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
+  const [employeeNumber, setEmployeeNumber] = useState('')
   const [company, setCompany] = useState('')
   const [team, setTeam] = useState('')
   const [position, setPosition] = useState('')
@@ -33,6 +34,7 @@ export default function ProfilePage() {
       setName(profile.name || '')
       setNickname(profile.nickname || '')
       setAvatarUrl(profile.avatar_url || '')
+      setEmployeeNumber(profile.employee_number || '')
       setCompany(profile.company || '')
       setTeam(profile.team || '')
       setPosition(profile.position || '')
@@ -79,6 +81,20 @@ export default function ProfilePage() {
         .getPublicUrl(uploadData.path)
 
       setAvatarUrl(publicUrl)
+
+      // 프로필에 avatar_url 업데이트
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id)
+
+      if (updateError) {
+        console.error('프로필 업데이트 오류:', updateError)
+        throw new Error('프로필 업데이트에 실패했습니다.')
+      }
+
+      // 프로필 업데이트 이벤트 발생
+      window.dispatchEvent(new CustomEvent('profile-updated'))
     } catch (err: any) {
       const errorMessage = err.message || '이미지 업로드에 실패했습니다.'
       setError(errorMessage)
@@ -103,6 +119,7 @@ export default function ProfilePage() {
           name: name || null,
           nickname: nickname || null,
           avatar_url: avatarUrl || null,
+          employee_number: employeeNumber || null,
           company: company || null,
           team: team || null,
           position: position || null,
@@ -115,6 +132,10 @@ export default function ProfilePage() {
       }
 
       setSuccess(true)
+      
+      // 프로필 업데이트 이벤트 발생 (다른 컴포넌트들이 프로필을 다시 가져오도록)
+      window.dispatchEvent(new CustomEvent('profile-updated'))
+      
       setTimeout(() => {
         router.refresh()
       }, 1000)
@@ -207,6 +228,21 @@ export default function ProfilePage() {
             placeholder="닉네임을 입력하세요"
           />
           <p className="text-xs text-gray-500 mt-1">닉네임이 우선적으로 표시됩니다.</p>
+        </div>
+
+        {/* 사번 */}
+        <div>
+          <label htmlFor="employeeNumber" className="block text-sm font-semibold text-gray-700 mb-2">
+            사번
+          </label>
+          <input
+            id="employeeNumber"
+            type="text"
+            value={employeeNumber}
+            onChange={(e) => setEmployeeNumber(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+            placeholder="사번을 입력하세요"
+          />
         </div>
 
         {/* 소속 회사 */}
