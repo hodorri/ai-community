@@ -10,6 +10,9 @@ export default function SignupForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
   const [employeeNumber, setEmployeeNumber] = useState('')
+  const [company, setCompany] = useState('')
+  const [team, setTeam] = useState('')
+  const [position, setPosition] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -41,7 +44,20 @@ export default function SignupForm() {
 
     setLoading(true)
 
-    const { data, error } = await supabase.auth.signUp({
+    // 먼저 profiles 테이블에서 이메일 확인
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (existingProfile) {
+      setError('이미 가입된 사용자입니다.')
+      setLoading(false)
+      return
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -53,46 +69,75 @@ export default function SignupForm() {
       },
     })
 
-    if (error) {
-      setError(error.message)
+    if (signUpError) {
+      // 이미 존재하는 사용자인 경우
+      if (signUpError.message.includes('already registered') || signUpError.message.includes('already exists')) {
+        setError('이미 가입된 사용자입니다.')
+      } else {
+        setError(signUpError.message)
+      }
       setLoading(false)
-    } else if (data.user) {
-      // 프로필에 이름과 사번 저장
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: name.trim(),
-          employee_number: employeeNumber.trim(),
-        })
-        .eq('id', data.user.id)
-
-      if (profileError) {
-        console.error('프로필 업데이트 오류:', profileError)
-      }
-
-      // 관리자에게 이메일 알림 발송
-      try {
-        await fetch('/api/notify-admin', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            userEmail: email,
-            userName: name.trim(),
-            employeeNumber: employeeNumber.trim(),
-          }),
-        })
-      } catch (err) {
-        console.error('관리자 알림 발송 실패:', err)
-        // 이메일 발송 실패해도 회원가입은 성공으로 처리
-      }
-
-      // 회원가입 성공 - 관리자 승인 대기 안내
-      alert('회원가입이 완료되었습니다!\n관리자 승인 후 서비스를 이용하실 수 있습니다.')
-      router.push('/')
-      router.refresh()
+      return
     }
+
+    if (!data.user) {
+      setError('회원가입에 실패했습니다. 다시 시도해주세요.')
+      setLoading(false)
+      return
+    }
+
+    // 프로필에 정보 저장 (upsert 사용)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: data.user.id,
+        email: email,
+        name: name.trim(),
+        employee_number: employeeNumber.trim(),
+        company: company.trim() || null,
+        team: team.trim() || null,
+        position: position.trim() || null,
+        status: 'pending',
+      }, {
+        onConflict: 'id'
+      })
+
+    if (profileError) {
+      console.error('프로필 저장 오류:', profileError)
+      setError('프로필 저장에 실패했습니다. 관리자에게 문의해주세요.')
+      setLoading(false)
+      return
+    }
+
+    // 관리자에게 이메일 알림 발송
+    try {
+      const notifyResponse = await fetch('/api/notify-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          userEmail: email,
+          userName: name.trim(),
+          employeeNumber: employeeNumber.trim(),
+          company: company.trim() || null,
+          team: team.trim() || null,
+          position: position.trim() || null,
+        }),
+      })
+
+      if (!notifyResponse.ok) {
+        console.error('관리자 알림 발송 실패:', await notifyResponse.text())
+      }
+    } catch (err) {
+      console.error('관리자 알림 발송 실패:', err)
+      // 이메일 발송 실패해도 회원가입은 성공으로 처리
+    }
+
+    // 회원가입 성공 - 관리자 승인 대기 안내
+    alert('회원가입이 완료되었습니다!\n관리자 승인 후 서비스를 이용하실 수 있습니다.')
+    router.push('/')
+    router.refresh()
   }
 
   return (
@@ -139,6 +184,45 @@ export default function SignupForm() {
           placeholder="사번을 입력하세요"
         />
         <p className="text-xs text-gray-500 mt-1">회사 직원 확인을 위해 필요합니다.</p>
+      </div>
+      <div>
+        <label htmlFor="company" className="block text-sm font-semibold text-gray-700 mb-2">
+          회사
+        </label>
+        <input
+          id="company"
+          type="text"
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+          placeholder="회사명을 입력하세요"
+        />
+      </div>
+      <div>
+        <label htmlFor="team" className="block text-sm font-semibold text-gray-700 mb-2">
+          소속 팀
+        </label>
+        <input
+          id="team"
+          type="text"
+          value={team}
+          onChange={(e) => setTeam(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+          placeholder="소속 팀을 입력하세요"
+        />
+      </div>
+      <div>
+        <label htmlFor="position" className="block text-sm font-semibold text-gray-700 mb-2">
+          직급
+        </label>
+        <input
+          id="position"
+          type="text"
+          value={position}
+          onChange={(e) => setPosition(e.target.value)}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
+          placeholder="직급을 입력하세요"
+        />
       </div>
       <div>
         <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">

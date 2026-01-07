@@ -6,7 +6,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || ''
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userEmail, userName, employeeNumber } = body
+    const { userEmail, userName, employeeNumber, company, team, position } = body
 
     if (!userEmail) {
       return NextResponse.json({ error: 'userEmail이 필요합니다.' }, { status: 400 })
@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
               <p><strong>이름:</strong> ${userName || '-'}</p>
               <p><strong>사번:</strong> ${employeeNumber || '-'}</p>
               <p><strong>이메일:</strong> ${userEmail}</p>
+              <p><strong>회사:</strong> ${company || '-'}</p>
+              <p><strong>소속 팀:</strong> ${team || '-'}</p>
+              <p><strong>직급:</strong> ${position || '-'}</p>
               <p><strong>가입 시간:</strong> ${new Date().toLocaleString('ko-KR')}</p>
             </div>
             <div style="margin: 30px 0;">
