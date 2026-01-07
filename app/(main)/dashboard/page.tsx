@@ -11,6 +11,8 @@ import CopCreateForm from '@/components/cop/CopCreateForm'
 import MyCopRequests from '@/components/cop/MyCopRequests'
 import NewsContent from '@/components/news/NewsContent'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study'
 
 function DashboardContent() {
@@ -69,20 +71,30 @@ function DashboardContent() {
             {/* 최신 AI 소식 - 고정 게시물만 표시 + 전체보기 버튼 */}
             <NewsContent showAll={false} />
             
+            {/* AI 활용사례 - 최대 3개 */}
+            <CasesSummary />
+            
+            {/* AI 개발일지 - 최대 3개 */}
+            <DiarySummary />
+            
             <div>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">AI 활용 사례</h2>
-              <DiaryContent />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-6 text-gray-900">AI CoP</h2>
-              <StudyContent showCreateButton={false} showTitle={false} />
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">AI CoP</h2>
+                <Link
+                  href="/dashboard?tab=study"
+                  className="text-ok-primary hover:text-ok-dark font-semibold text-sm flex items-center gap-1"
+                >
+                  CoP 전체보기 →
+                </Link>
+              </div>
+              <StudyContent showCreateButton={false} showTitle={false} limit={3} />
             </div>
           </div>
         )}
 
         {activeTab === 'diary' && <DiaryContent />}
         {activeTab === 'news' && <NewsContent />}
-        {activeTab === 'study' && <StudyContent showCreateButton={true} showTitle={true} />}
+        {activeTab === 'study' && <StudyContent showCreateButton={true} showTitle={true} showDescription={true} />}
       </div>
     </div>
   )
@@ -90,6 +102,7 @@ function DashboardContent() {
 
 // 개발 일지 컴포넌트
 function DiaryContent() {
+  const { user } = useAuth()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -131,7 +144,7 @@ function DiaryContent() {
             const [profileResult, likesResult, commentsResult] = await Promise.all([
               supabase
                 .from('profiles')
-                .select('email, name, nickname, avatar_url')
+                .select('email, name, nickname, avatar_url, company, team, position')
                 .eq('id', post.user_id)
                 .single(),
               supabase
@@ -151,6 +164,9 @@ function DiaryContent() {
                 name: profileResult.data?.name || null,
                 nickname: profileResult.data?.nickname || null,
                 avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
               },
               likes_count: likesResult.count || 0,
               comments_count: commentsResult.count || 0,
@@ -213,41 +229,239 @@ function DiaryContent() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-      {posts.map((post: any) => (
-        <PostListItem key={post.id} post={post} />
-      ))}
+    <div>
+      {/* 페이지 제목 및 설명 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">AI 개발일지</h1>
+        <p className="text-gray-600 text-base">
+          엔지니어들의 실시간 개발 기록 공간입니다. 진행 과정을 공유하고 댓글 피드백을 통해 기술적 깊이를 더해보세요.
+        </p>
+      </div>
+
+      {/* 글쓰기 버튼 */}
+      {user && (
+        <div className="mb-6 flex justify-end">
+          <Link
+            href="/post/new"
+            className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+          >
+            글쓰기
+          </Link>
+        </div>
+      )}
+
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {posts.map((post: any) => (
+          <PostListItem key={post.id} post={post} />
+        ))}
+      </div>
     </div>
   )
 }
 
 // 최신 AI News 컴포넌트는 별도 파일로 분리됨
 
-// AI 활용 사례 컴포넌트
-function CasesContent() {
+// AI 활용사례 요약 컴포넌트 (대시보드용, 최대 3개)
+function CasesSummary() {
+  const [cases, setCases] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchCases() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        
+        const { data, error } = await supabase
+          .from('ai_cases')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('published_at', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (error) throw error
+        
+        const casesWithUser = (data || []).map((c: any) => ({
+          ...c,
+          user: {
+            email: c.author_email || null,
+            name: c.author_name || null,
+            nickname: c.author_name || null,
+            avatar_url: null,
+            company: null,
+            team: null,
+            position: null,
+          },
+          likes_count: 0,
+          comments_count: 0,
+          user_id: c.imported_by || null,
+        }))
+        
+        setCases(casesWithUser)
+      } catch (error) {
+        console.error('AI 활용사례 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCases()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
   return (
-    <div className="text-center py-12">
-      <div className="bg-gradient-ok-subtle rounded-2xl p-12">
-        <p className="text-gray-600 mb-2 text-lg">AI 활용 사례 기능은 준비 중입니다.</p>
-        <p className="text-sm text-gray-400">곧 만나보실 수 있습니다.</p>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">AI 활용사례</h2>
+        <Link
+          href="/cases"
+          className="text-ok-primary hover:text-ok-dark font-semibold text-sm flex items-center gap-1"
+        >
+          사례 전체보기 →
+        </Link>
       </div>
+      
+      {cases.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          아직 등록된 활용사례가 없습니다.
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {cases.map((c: any) => (
+            <PostListItem key={c.id} post={c} linkPrefix="/cases" />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// AI 개발일지 요약 컴포넌트 (대시보드용, 최대 3개)
+function DiarySummary() {
+  const [posts, setPosts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchPosts() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(3)
+        
+        if (postsError) throw postsError
+        
+        if (!postsData || postsData.length === 0) {
+          setPosts([])
+          setLoading(false)
+          return
+        }
+        
+        const postsWithCounts = await Promise.all(
+          postsData.map(async (post: any) => {
+            const [profileResult, likesResult, commentsResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('email, name, nickname, avatar_url, company, team, position')
+                .eq('id', post.user_id)
+                .single(),
+              supabase
+                .from('likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+              supabase
+                .from('comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+            ])
+
+            return {
+              ...post,
+              user: {
+                email: profileResult.data?.email || null,
+                name: profileResult.data?.name || null,
+                nickname: profileResult.data?.nickname || null,
+                avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
+              },
+              likes_count: likesResult.count || 0,
+              comments_count: commentsResult.count || 0,
+            }
+          })
+        )
+        
+        setPosts(postsWithCounts)
+      } catch (error) {
+        console.error('AI 개발일지 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPosts()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">AI 개발일지</h2>
+        <Link
+          href="/dashboard?tab=diary"
+          className="text-ok-primary hover:text-ok-dark font-semibold text-sm flex items-center gap-1"
+        >
+          개발일지 전체보기 →
+        </Link>
+      </div>
+      
+      {posts.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          아직 작성된 개발일지가 없습니다.
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {posts.map((post: any) => (
+            <PostListItem key={post.id} post={post} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 // AI CoP 컴포넌트
-function StudyContent({ showCreateButton = true, showTitle = true }: { showCreateButton?: boolean, showTitle?: boolean }) {
+function StudyContent({ showCreateButton = true, showTitle = true, showDescription = false, limit }: { showCreateButton?: boolean, showTitle?: boolean, showDescription?: boolean, limit?: number }) {
   const { user } = useAuth()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showMyRequests, setShowMyRequests] = useState(false)
 
   return (
     <div>
+      {/* 페이지 제목 및 설명 */}
+      {showDescription && (
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">AI CoP</h1>
+          <p className="text-gray-600 text-base">
+            툴과 주제별 학습 모임(CoP) 공간입니다. 직접 개설하거나 참여하며 주도적으로 AI 역량을 강화해 보세요.
+          </p>
+        </div>
+      )}
+
       {/* 헤더 및 개설하기 버튼 */}
       {(showTitle || showCreateButton) && (
-        <div className="flex items-center justify-between mb-6">
-          {showTitle && <h2 className="text-2xl font-bold text-gray-900">AI CoP</h2>}
-          {!showTitle && showCreateButton && <div />}
+        <div className="flex items-center justify-end mb-6">
           {showCreateButton && user && (
             <div className="flex gap-3">
               <button
@@ -268,7 +482,7 @@ function StudyContent({ showCreateButton = true, showTitle = true }: { showCreat
       )}
 
       {/* CoP 목록 */}
-      <CopList />
+      <CopList limit={limit} />
 
       {/* CoP 개설 폼 모달 */}
       {showCreateForm && (

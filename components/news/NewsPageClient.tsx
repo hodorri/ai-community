@@ -187,7 +187,7 @@ export default function NewsPageClient({ newsId, initialNews, isFromSelectedNews
             currentUserId={currentUserId}
             isFromSelectedNews={fromSelectedNews}
           />
-          <div className="px-6 sm:px-8 pb-6">
+          <div className="px-6 sm:px-8 pb-6 border-t">
             <NewsCommentSection newsId={newsId} />
           </div>
         </div>

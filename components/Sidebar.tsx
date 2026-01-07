@@ -10,7 +10,7 @@ export default function Sidebar() {
   const menuItems = [
     { href: '/dashboard', label: '홈', icon: '🏠', tab: null },
     { href: '/dashboard?tab=news', label: '최신 AI 소식', icon: '📰', tab: 'news' },
-    { href: '/dashboard?tab=diary', label: 'AI 활용 사례', icon: '💡', tab: 'diary' },
+    { href: '/dashboard?tab=diary', label: 'AI 개발일지', icon: '💡', tab: 'diary' },
     { href: '/dashboard?tab=study', label: 'AI CoP', icon: '🎓', tab: 'study' },
   ]
 

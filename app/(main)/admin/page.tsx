@@ -10,7 +10,7 @@ import Image from 'next/image'
 // 관리자 이메일 (환경 변수에서 가져오거나 설정)
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
-type TabType = 'users' | 'cops' | 'news'
+type TabType = 'users' | 'cops' | 'news' | 'guide'
 type NewsFilterType = 'all' | 'crawled' | 'published'
 
 export default function AdminPage() {
@@ -62,6 +62,10 @@ export default function AdminPage() {
   const [bulkUpdating, setBulkUpdating] = useState(false) // 일괄 수정 중
   const [bulkUpdateImage, setBulkUpdateImage] = useState<File | null>(null) // 일괄 수정용 이미지 파일
   const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false) // 일괄 수정 모달 표시 여부
+  // 가이드 편집 관련
+  const [guideData, setGuideData] = useState<any>(null)
+  const [guideLoading, setGuideLoading] = useState(false)
+  const [guideSaving, setGuideSaving] = useState(false)
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -542,7 +546,141 @@ export default function AdminPage() {
         }
       }
     }
+    if (activeTab === 'guide' && isAdmin) {
+      fetchGuideContent()
+    }
   }, [activeTab, isAdmin, newsFilter, supabase])
+
+  const fetchGuideContent = async () => {
+    try {
+      setGuideLoading(true)
+      console.log('[가이드 관리] 데이터 불러오기 시작...')
+      
+      const response = await fetch('/api/guide', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('[가이드 관리] API 응답:', result)
+      
+      if (result.data) {
+        console.log('[가이드 관리] 데이터 있음, state 업데이트 시작:', result.data)
+        setGuideData(result.data)
+        console.log('[가이드 관리] state 업데이트 완료')
+      } else {
+        console.log('[가이드 관리] 데이터 없음, 기본값 사용')
+        // 기본값 설정
+        setGuideData({
+          title: 'OKAI 가이드',
+          welcome_title: '환영합니다!',
+          welcome_content: 'OKAI 플랫폼에 오신 것을 환영합니다. 이 가이드를 통해 OKAI의 다양한 기능을 활용하는 방법을 알아보세요.',
+          features: [
+            { icon: '📰', title: '최신 AI 소식', description: '최신 AI 뉴스와 정보를 확인하고, 직접 뉴스를 작성하여 공유할 수 있습니다.' },
+            { icon: '💡', title: 'AI 활용 사례', description: '실제 AI 활용 경험과 노하우를 공유하는 공간입니다.' },
+            { icon: '🎓', title: 'AI CoP', description: 'AI 관련 커뮤니티 오브 프랙티스(CoP)를 만들고 참여하여 함께 학습하고 성장할 수 있습니다.' },
+            { icon: '✨', title: '전체 피드', description: '로그인 후 모든 콘텐츠를 한눈에 볼 수 있는 통합 피드를 제공합니다.' }
+          ],
+          getting_started: [
+            '회원가입 또는 로그인을 진행합니다.',
+            '원하는 탭을 클릭하여 콘텐츠를 탐색합니다.',
+            '글쓰기 버튼을 통해 자신의 경험과 지식을 공유합니다.',
+            'AI CoP를 개설하거나 참여하여 커뮤니티 활동을 시작합니다.'
+          ],
+          tips: [
+            '좋아요와 댓글을 통해 다른 사용자들과 소통해보세요.',
+            '검색 기능을 활용하여 원하는 콘텐츠를 빠르게 찾을 수 있습니다.',
+            '프로필 페이지에서 자신의 활동 내역을 확인할 수 있습니다.'
+          ]
+        })
+      }
+    } catch (error) {
+      console.error('가이드 내용 불러오기 오류:', error)
+      alert('가이드 내용을 불러오는데 실패했습니다.')
+    } finally {
+      setGuideLoading(false)
+    }
+  }
+
+  const handleSaveGuide = async () => {
+    if (!guideData) {
+      alert('저장할 데이터가 없습니다.')
+      return
+    }
+
+    try {
+      setGuideSaving(true)
+
+      // 프로필 수정처럼 직접 Supabase로 업데이트
+      const updateData: any = {
+        title: guideData.title || 'OKAI 가이드',
+        welcome_title: guideData.welcome_title || '환영합니다!',
+        welcome_content: guideData.welcome_content || '',
+        features: guideData.features || [],
+        getting_started: guideData.getting_started || [],
+        tips: guideData.tips || [],
+        updated_at: new Date().toISOString(),
+      }
+
+      // ID가 있으면 업데이트, 없으면 최신 데이터 찾아서 업데이트
+      let targetId = guideData.id
+      
+      if (!targetId) {
+        // 최신 데이터의 ID 가져오기
+        const { data: latestData, error: latestError } = await supabase
+          .from('guide_content')
+          .select('id')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (latestError) {
+          throw new Error('기존 데이터를 찾을 수 없습니다: ' + latestError.message)
+        }
+
+        if (latestData) {
+          targetId = latestData.id
+        }
+      }
+
+      let error
+      if (targetId) {
+        // 기존 데이터 업데이트
+        const { error: updateError } = await supabase
+          .from('guide_content')
+          .update(updateData)
+          .eq('id', targetId)
+
+        error = updateError
+      } else {
+        // 새 데이터 생성
+        const { error: insertError } = await supabase
+          .from('guide_content')
+          .insert(updateData)
+
+        error = insertError
+      }
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      // 성공 시 데이터 다시 불러오기
+      await fetchGuideContent()
+      alert('가이드 내용이 저장되었습니다!')
+    } catch (error: any) {
+      console.error('가이드 저장 오류:', error)
+      alert('저장 실패: ' + (error?.message || '알 수 없는 오류'))
+    } finally {
+      setGuideSaving(false)
+    }
+  }
 
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -1225,6 +1363,16 @@ export default function AdminPage() {
             >
               뉴스 관리
             </button>
+            <button
+              onClick={() => setActiveTab('guide')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'guide'
+                  ? 'border-ok-primary text-ok-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              가이드 관리
+            </button>
           </div>
             {activeTab === 'news' && (
               <div className="flex items-center gap-2">
@@ -1250,7 +1398,7 @@ export default function AdminPage() {
             )}
         </div>
 
-        {activeTab !== 'news' && (
+        {activeTab !== 'news' && activeTab !== 'guide' && (
           <>
             <p className="text-gray-600 mb-4">
               {activeTab === 'users' ? '사용자 관리' : activeTab === 'cops' ? 'CoP 관리' : '뉴스 관리'}
@@ -2046,6 +2194,224 @@ export default function AdminPage() {
             )
           )}
         </>
+      ) : activeTab === 'guide' ? (
+        <div className="bg-white rounded-2xl shadow-md p-8">
+          {guideLoading ? (
+            <div className="text-center py-12 text-gray-500">로딩 중...</div>
+          ) : guideData ? (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  제목
+                </label>
+                <input
+                  type="text"
+                  value={guideData.title || ''}
+                  onChange={(e) => setGuideData({ ...guideData, title: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20"
+                  placeholder="OKAI 가이드"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  환영 제목
+                </label>
+                <input
+                  type="text"
+                  value={guideData.welcome_title || ''}
+                  onChange={(e) => setGuideData({ ...guideData, welcome_title: e.target.value })}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20"
+                  placeholder="환영합니다!"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  환영 내용
+                </label>
+                <textarea
+                  value={guideData.welcome_content || ''}
+                  onChange={(e) => setGuideData({ ...guideData, welcome_content: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20"
+                  placeholder="OKAI 플랫폼에 오신 것을 환영합니다..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  주요 기능
+                </label>
+                <div className="space-y-3">
+                  {(guideData.features || []).map((feature: any, index: number) => (
+                    <div key={index} className="border-2 border-gray-200 rounded-xl p-4">
+                      <div className="grid grid-cols-12 gap-3 mb-3">
+                        <div className="col-span-1">
+                          <input
+                            type="text"
+                            value={feature.icon || ''}
+                            onChange={(e) => {
+                              const newFeatures = [...(guideData.features || [])]
+                              newFeatures[index] = { ...feature, icon: e.target.value }
+                              setGuideData({ ...guideData, features: newFeatures })
+                            }}
+                            className="w-full px-2 py-2 border border-gray-300 rounded-lg text-center"
+                            placeholder="📰"
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <input
+                            type="text"
+                            value={feature.title || ''}
+                            onChange={(e) => {
+                              const newFeatures = [...(guideData.features || [])]
+                              newFeatures[index] = { ...feature, title: e.target.value }
+                              setGuideData({ ...guideData, features: newFeatures })
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="기능 제목"
+                          />
+                        </div>
+                        <div className="col-span-6">
+                          <input
+                            type="text"
+                            value={feature.description || ''}
+                            onChange={(e) => {
+                              const newFeatures = [...(guideData.features || [])]
+                              newFeatures[index] = { ...feature, description: e.target.value }
+                              setGuideData({ ...guideData, features: newFeatures })
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="기능 설명"
+                          />
+                        </div>
+                        <div className="col-span-1">
+                          <button
+                            onClick={() => {
+                              const newFeatures = (guideData.features || []).filter((_: any, i: number) => i !== index)
+                              setGuideData({ ...guideData, features: newFeatures })
+                            }}
+                            className="w-full px-2 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newFeatures = [...(guideData.features || []), { icon: '', title: '', description: '' }]
+                      setGuideData({ ...guideData, features: newFeatures })
+                    }}
+                    className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-ok-primary hover:text-ok-primary transition-colors"
+                  >
+                    + 기능 추가
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  시작하기
+                </label>
+                <div className="space-y-2">
+                  {(guideData.getting_started || []).map((item: string, index: number) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={item}
+                        onChange={(e) => {
+                          const newList = [...(guideData.getting_started || [])]
+                          newList[index] = e.target.value
+                          setGuideData({ ...guideData, getting_started: newList })
+                        }}
+                        className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-ok-primary"
+                        placeholder={`${index + 1}번 항목`}
+                      />
+                      <button
+                        onClick={() => {
+                          const newList = (guideData.getting_started || []).filter((_: string, i: number) => i !== index)
+                          setGuideData({ ...guideData, getting_started: newList })
+                        }}
+                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newList = [...(guideData.getting_started || []), '']
+                      setGuideData({ ...guideData, getting_started: newList })
+                    }}
+                    className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-ok-primary hover:text-ok-primary transition-colors"
+                  >
+                    + 항목 추가
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  팁
+                </label>
+                <div className="space-y-2">
+                  {(guideData.tips || []).map((tip: string, index: number) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={tip}
+                        onChange={(e) => {
+                          const newList = [...(guideData.tips || [])]
+                          newList[index] = e.target.value
+                          setGuideData({ ...guideData, tips: newList })
+                        }}
+                        className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-ok-primary"
+                        placeholder={`팁 ${index + 1}`}
+                      />
+                      <button
+                        onClick={() => {
+                          const newList = (guideData.tips || []).filter((_: string, i: number) => i !== index)
+                          setGuideData({ ...guideData, tips: newList })
+                        }}
+                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const newList = [...(guideData.tips || []), '']
+                      setGuideData({ ...guideData, tips: newList })
+                    }}
+                    className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-ok-primary hover:text-ok-primary transition-colors"
+                  >
+                    + 팁 추가
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+                <button
+                  onClick={handleSaveGuide}
+                  disabled={guideSaving}
+                  className={`px-6 py-3 rounded-xl font-semibold transition-colors ${
+                    guideSaving
+                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      : 'bg-ok-primary text-white hover:bg-ok-dark'
+                  }`}
+                >
+                  {guideSaving ? '저장 중...' : '저장하기'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">가이드 내용을 불러올 수 없습니다.</div>
+          )}
+        </div>
       ) : null}
 
       {/* 수정 모달 */}

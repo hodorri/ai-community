@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study'
+type TabType = 'all' | 'guide' | 'diary' | 'news' | 'cases' | 'study'
 
 interface TabNavigationProps {
   activeTab: TabType
@@ -16,8 +16,10 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
 
   const tabs = [
     { id: 'all' as TabType, label: '전체', showOnlyWhenLoggedIn: true },
+    { id: 'guide' as TabType, label: 'OKAI 가이드', showOnlyWhenLoggedIn: false },
     { id: 'news' as TabType, label: '최신 AI 소식', showOnlyWhenLoggedIn: false },
-    { id: 'diary' as TabType, label: 'AI 활용 사례', showOnlyWhenLoggedIn: false },
+    { id: 'cases' as TabType, label: 'AI 활용사례', showOnlyWhenLoggedIn: false },
+    { id: 'diary' as TabType, label: 'AI 개발일지', showOnlyWhenLoggedIn: false },
     { id: 'study' as TabType, label: 'AI CoP', showOnlyWhenLoggedIn: false },
   ]
 
@@ -26,14 +28,14 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
   return (
     <nav className="bg-white border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-8">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex space-x-8 h-full">
             {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`
-                  py-4 px-1 border-b-2 font-medium text-sm transition-colors
+                  px-1 border-b-2 font-medium text-sm transition-colors h-full flex items-center
                   ${
                     activeTab === tab.id
                       ? 'border-ok-primary text-ok-primary'
@@ -45,14 +47,6 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
               </button>
             ))}
           </div>
-          {user && (activeTab === 'news' || activeTab === 'diary') && (
-            <Link
-              href={activeTab === 'news' ? '/news/new' : '/post/new'}
-              className="ml-4 bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
-            >
-              글쓰기
-            </Link>
-          )}
         </div>
       </div>
     </nav>

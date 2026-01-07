@@ -7,7 +7,7 @@ import ApprovalBanner from '@/components/ApprovalBanner'
 import TabNavigation from '@/components/TabNavigation'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study'
+type TabType = 'all' | 'guide' | 'diary' | 'news' | 'cases' | 'study'
 
 function MainLayoutContent({
   children,
@@ -21,10 +21,20 @@ function MainLayoutContent({
 
   // URL 경로에 따라 활성 탭 결정
   const getActiveTab = (): TabType => {
+    // 가이드 페이지인 경우
+    if (pathname === '/guide') {
+      return 'guide'
+    }
+    
+    // AI 활용사례 페이지인 경우
+    if (pathname === '/cases') {
+      return 'cases'
+    }
+    
     // 대시보드 페이지인 경우
     if (pathname === '/dashboard') {
       const tabParam = searchParams.get('tab')
-      if (tabParam && ['all', 'diary', 'news', 'cases', 'study'].includes(tabParam)) {
+      if (tabParam && ['all', 'guide', 'diary', 'news', 'cases', 'study'].includes(tabParam)) {
         return tabParam as TabType
       }
       return user ? 'all' : 'diary'
@@ -54,6 +64,10 @@ function MainLayoutContent({
   const handleTabChange = (tab: TabType) => {
     if (tab === 'all') {
       router.push('/dashboard')
+    } else if (tab === 'guide') {
+      router.push('/guide')
+    } else if (tab === 'cases') {
+      router.push('/cases')
     } else {
       router.push(`/dashboard?tab=${tab}`)
     }
@@ -62,7 +76,8 @@ function MainLayoutContent({
   // TabNavigation을 표시할 경로 (admin, profile 등은 제외)
   const shouldShowTabNavigation = !pathname?.startsWith('/admin') && 
                                    !pathname?.startsWith('/profile') &&
-                                   pathname !== '/post/new'
+                                   pathname !== '/post/new' &&
+                                   pathname !== '/news/new'
 
   return (
     <>

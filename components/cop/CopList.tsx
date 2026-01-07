@@ -10,7 +10,11 @@ interface CopWithMembers extends CoP {
   current_members?: number
 }
 
-export default function CopList() {
+interface CopListProps {
+  limit?: number // 최대 표시 개수 (기본값: 무제한)
+}
+
+export default function CopList({ limit }: CopListProps = {}) {
   const [cops, setCops] = useState<CopWithMembers[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -54,7 +58,9 @@ export default function CopList() {
           })
         )
 
-        setCops(copsWithMembers)
+        // limit이 설정되어 있으면 개수 제한
+        const limitedCops = limit ? copsWithMembers.slice(0, limit) : copsWithMembers
+        setCops(limitedCops)
       } catch (error) {
         console.error('CoP 조회 오류:', error)
         setCops([])

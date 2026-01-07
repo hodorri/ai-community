@@ -9,8 +9,12 @@ interface PostListItemProps {
       name?: string
       nickname?: string
       avatar_url?: string
+      company?: string
+      team?: string
+      position?: string
     }
   }
+  linkPrefix?: string // 링크 접두사 (기본값: '/post')
 }
 
 // HTML 태그 제거 및 텍스트 추출 함수
@@ -33,7 +37,27 @@ function stripHtmlTags(html: string): string {
   }
 }
 
-export default function PostListItem({ post }: PostListItemProps) {
+function getTimeAgo(dateString: string): string {
+  const now = new Date()
+  const date = new Date(dateString)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return '방금 전'
+  if (diffMins < 60) return `${diffMins}분 전`
+  if (diffHours < 24) return `${diffHours}시간 전`
+  if (diffDays < 30) return `${diffDays}일 전`
+  
+  const diffMonths = Math.floor(diffDays / 30)
+  if (diffMonths < 12) return `${diffMonths}개월 전`
+  
+  const diffYears = Math.floor(diffDays / 365)
+  return `${diffYears}년 전`
+}
+
+export default function PostListItem({ post, linkPrefix = '/post' }: PostListItemProps) {
   const previewImage = post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : null
   const authorAvatar = post.user?.avatar_url
   const authorName = post.user?.nickname || post.user?.name || post.user?.email?.split('@')[0] || '익명'
@@ -53,38 +77,43 @@ export default function PostListItem({ post }: PostListItemProps) {
     return null
   }
 
+  // AI 활용사례(/cases)에서는 아바타 이미지 표시하지 않음
+  const showAvatar = linkPrefix !== '/cases'
+
   return (
     <Link 
-      href={`/post/${post.id}`}
+      href={`${linkPrefix}/${post.id}`}
       className="block"
     >
       <article className="flex items-start gap-4 py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
-        {/* 썸네일 - 게시글 이미지가 있으면 게시글 이미지, 없으면 작성자 프로필 사진 */}
-        <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
-          {previewImage ? (
-            <Image
-              src={previewImage}
-              alt={post.title}
-              width={80}
-              height={80}
-              className="w-full h-full object-cover"
-            />
-          ) : authorAvatar ? (
-            <div className="relative w-full h-full">
+        {/* 썸네일 - 게시글 이미지가 있으면 게시글 이미지, 없으면 작성자 프로필 사진 (AI 활용사례 제외) */}
+        {showAvatar && (
+          <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
+            {previewImage ? (
               <Image
-                src={authorAvatar}
-                alt={authorName}
-                fill
-                className="object-cover"
-                sizes="80px"
+                src={previewImage}
+                alt={post.title}
+                width={80}
+                height={80}
+                className="w-full h-full object-cover"
               />
-            </div>
-          ) : (
-            <div className="w-full h-full bg-ok-primary flex items-center justify-center">
-              <span className="text-white font-semibold text-xl">{authorInitial}</span>
-            </div>
-          )}
-        </div>
+            ) : authorAvatar ? (
+              <div className="relative w-full h-full">
+                <Image
+                  src={authorAvatar}
+                  alt={authorName}
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
+              </div>
+            ) : (
+              <div className="w-full h-full bg-ok-primary flex items-center justify-center">
+                <span className="text-white font-semibold text-xl">{authorInitial}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 내용 영역 */}
         <div className="flex-1 min-w-0">
@@ -99,6 +128,36 @@ export default function PostListItem({ post }: PostListItemProps) {
           <p className="text-sm text-gray-600 mb-2 line-clamp-2">
             {contentPreview || '내용이 없습니다.'}
           </p>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            {/* AI 활용사례일 때는 "작성자명 · AI Engineer [기수] · 시간" 형태로 표시 */}
+            {linkPrefix === '/cases' ? (
+              <>
+                {authorName && (
+                  <>
+                    <span>{authorName}</span>
+                    <span>·</span>
+                  </>
+                )}
+                <span>
+                  AI Engineer{post.ai_engineer_cohort ? ` ${post.ai_engineer_cohort}` : ''}
+                </span>
+                <span>·</span>
+                <span>{getTimeAgo(post.published_at || post.created_at)}</span>
+              </>
+            ) : (
+              <>
+                <span>{authorName}</span>
+                {post.user && (post.user.company || post.user.team || post.user.name || post.user.position) && (
+                  <>
+                    <span>·</span>
+                    <span>{[post.user.company, post.user.team, post.user.name, post.user.position].filter(Boolean).join(' ')}</span>
+                  </>
+                )}
+                <span>·</span>
+                <span>{getTimeAgo(post.created_at)}</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* 좋아요/댓글 수 */}

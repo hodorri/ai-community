@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -46,6 +46,8 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
   const [likesCount, setLikesCount] = useState(news.likes_count || 0)
   const [isPinned, setIsPinned] = useState(news.is_pinned || false)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
+  const [showMenu, setShowMenu] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const timeAgo = news.published_at 
     ? getTimeAgo(news.published_at)
@@ -73,6 +75,23 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
     fetchCurrentUser()
   }, [supabase])
 
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showMenu])
+
   const handleTogglePin = async () => {
     if (!isAdmin) return
 
@@ -91,6 +110,7 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
 
       setIsPinned(!isPinned)
       setNews({ ...news, is_pinned: !isPinned })
+      setShowMenu(false)
       
       // 뉴스 목록 새로고침을 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('news-updated'))
@@ -99,6 +119,42 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
     } catch (error) {
       console.error('고정 상태 변경 오류:', error)
       alert(`고정 상태 변경에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!isAdmin) return
+    
+    if (!confirm('정말로 이 뉴스를 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) {
+      return
+    }
+
+    try {
+      // selected_news에서 온 경우 selected_news 테이블에서 삭제, 아니면 news 테이블에서 삭제
+      const tableName = isFromSelectedNews ? 'selected_news' : 'news'
+      
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq('id', news.id)
+
+      if (error) {
+        console.error('[뉴스 삭제] 삭제 오류:', error)
+        throw error
+      }
+
+      alert('뉴스가 삭제되었습니다.')
+      setShowMenu(false)
+      
+      // 뉴스 목록 새로고침을 위한 이벤트 발생
+      window.dispatchEvent(new CustomEvent('news-updated'))
+      
+      // 뉴스 목록 페이지로 이동
+      router.push('/dashboard?tab=news')
+      router.refresh()
+    } catch (error: any) {
+      console.error('[뉴스 삭제] 삭제 오류:', error)
+      alert(`삭제에 실패했습니다: ${error?.message || '알 수 없는 오류'}`)
     }
   }
 
@@ -143,37 +199,68 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
 
   return (
     <div className="p-6 sm:p-8">
-      {/* 카테고리 및 작성자 정보 */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b">
-        <div className="flex items-center gap-2">
+      {/* 헤더 - 목록으로 돌아가기, 카테고리, 고정 버튼 및 메뉴 */}
+      <div className="relative flex items-center justify-between mb-6">
+        <button
+          onClick={() => router.push('/dashboard?tab=news')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm">목록으로</span>
+        </button>
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+          {isPinned && (
+            <span className="text-yellow-500 text-lg" title="고정된 게시물">📌</span>
+          )}
           <span className="text-sm text-gray-600">📰 최신 AI 소식</span>
         </div>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
+        {isAdmin ? (
+          <div className="relative" ref={menuRef}>
             <button
-              onClick={handleTogglePin}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                isPinned
-                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title={isPinned ? '고정 해제' : '상단 고정'}
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
             >
-              {isPinned ? '📌 고정됨' : '📌 고정'}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
             </button>
-          )}
-          {canEdit && (
-            <button
-              onClick={() => router.push(`/news/${news.id}/edit`)}
-              className="px-4 py-2 text-sm text-ok-primary hover:text-ok-dark transition-colors"
-            >
-              내용 수정하기
-            </button>
-          )}
-        </div>
+            {showMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                <button
+                  onClick={handleTogglePin}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg"
+                >
+                  {isPinned ? '고정 해제' : '상단 고정'}
+                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => {
+                      setShowMenu(false)
+                      router.push(`/news/${news.id}/edit`)
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    수정하기
+                  </button>
+                )}
+                <button
+                  onClick={handleDelete}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 last:rounded-b-lg"
+                >
+                  삭제하기
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div></div>
+        )}
       </div>
 
-      {/* 작성자 정보 */}
+      <div>
+        {/* 작성자 정보 */}
       <div className="flex items-center gap-3 mb-6">
         {avatarUrl ? (
           <div className="relative w-12 h-12 rounded-full overflow-hidden">
@@ -248,6 +335,7 @@ export default function NewsDetail({ news: initialNews, isLiked: initialIsLiked 
           </svg>
           <span className="font-medium text-sm">좋아요</span>
         </button>
+      </div>
       </div>
     </div>
   )

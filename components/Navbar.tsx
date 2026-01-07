@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import UserMenu from '@/components/UserMenu'
+import AIInspirationModal from '@/components/AIInspirationModal'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
@@ -44,6 +45,7 @@ export default function Navbar() {
   const [showSearch, setShowSearch] = useState(false)
   const [searchResults, setSearchResults] = useState<SearchResult | null>(null)
   const [isSearching, setIsSearching] = useState(false)
+  const [showAIInspiration, setShowAIInspiration] = useState(false)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const searchFormRef = useRef<HTMLDivElement>(null)
 
@@ -130,12 +132,41 @@ export default function Navbar() {
   return (
     <nav className="bg-white shadow-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        {/* 첫 번째 줄: OKAI 가이드 (좌측) | AI Inspiration (우측) */}
+        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+          <div className="flex items-center gap-4">
+            <Link
+              href="/guide"
+              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-semibold"
+            >
+              OKAI 가이드
+            </Link>
+            <Link
+              href="https://okfngroup.ubob.com/Account/Login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-semibold"
+            >
+              OK학당
+            </Link>
+          </div>
+          <button
+            onClick={() => setShowAIInspiration(true)}
+            className="text-sm text-gray-600 hover:text-ok-primary transition-colors flex items-center gap-1 font-semibold"
+            title="오늘의 AI Inspiration"
+          >
+            <span>💡</span>
+            <span>AI Inspiration</span>
+          </button>
+        </div>
+
+        {/* 두 번째 줄: 제목 | 검색 | 프로필 | 로그아웃 (모두 같은 높이) */}
+        <div className="flex justify-between items-center h-16 relative">
           {/* 왼쪽: 빈 공간 */}
           <div className="flex-1" />
           
-          {/* 가운데: 로고 */}
-          <div className="flex-1 flex justify-center">
+          {/* 가운데: 로고 - 화면 가로 정가운데 */}
+          <div className="absolute left-1/2 transform -translate-x-1/2">
             <Link 
               href={user ? "/dashboard" : "/"} 
               className="text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
@@ -199,7 +230,7 @@ export default function Navbar() {
                             {/* Posts 결과 */}
                             {searchResults.posts.length > 0 && (
                               <div className="p-2">
-                                <div className="text-xs font-semibold text-gray-500 px-3 py-2 bg-gray-50 rounded-t">AI 활용 사례</div>
+                                <div className="text-xs font-semibold text-gray-500 px-3 py-2 bg-gray-50 rounded-t">AI 개발일지</div>
                                 {searchResults.posts.map((post) => (
                                   <Link
                                     key={post.id}
@@ -250,7 +281,7 @@ export default function Navbar() {
               ) : (
                 <button
                   onClick={() => setShowSearch(true)}
-                  className="text-gray-500 hover:text-gray-700 p-2"
+                  className="text-gray-500 hover:text-gray-700 p-2 h-10 flex items-center justify-center"
                   title="검색"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,19 +291,21 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* 사용자 메뉴 - 검색창이 열려도 위치 유지 */}
+            {/* 사용자 메뉴 */}
             <div className="flex items-center space-x-4 flex-shrink-0">
               {loading ? (
-                <div className="text-gray-500 text-sm whitespace-nowrap">로딩 중...</div>
+                <div className="text-gray-500 text-sm whitespace-nowrap h-10 flex items-center">로딩 중...</div>
               ) : user ? (
                 <>
                   {!isApproved && profile && (
-                    <span className="text-yellow-600 text-sm px-3 whitespace-nowrap">승인 대기 중</span>
+                    <span className="text-yellow-600 text-sm px-3 whitespace-nowrap h-10 flex items-center">승인 대기 중</span>
                   )}
-                  <UserMenu />
+                  <div className="h-10 flex items-center">
+                    <UserMenu />
+                  </div>
                   <button
                     onClick={handleLogout}
-                    className="text-gray-700 hover:text-red-600 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+                    className="text-gray-700 hover:text-red-600 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     로그아웃
                   </button>
@@ -281,13 +314,13 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/login"
-                    className="text-gray-700 hover:text-ok-primary px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap"
+                    className="text-gray-700 hover:text-ok-primary px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     로그인
                   </Link>
                   <Link
                     href="/signup"
-                    className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
+                    className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg whitespace-nowrap h-10 flex items-center justify-center"
                   >
                     회원가입
                   </Link>
@@ -297,6 +330,12 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+
+      {/* AI Inspiration Modal */}
+      <AIInspirationModal 
+        isOpen={showAIInspiration} 
+        onClose={() => setShowAIInspiration(false)} 
+      />
     </nav>
   )
 }

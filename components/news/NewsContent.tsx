@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import PinnedNewsItem from './PinnedNewsItem'
 import NewsListRowItem from './NewsListRowItem'
 import NewsEditor from './NewsEditor'
 import type { News } from '@/lib/types/database'
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 interface NewsContentProps {
   showAll?: boolean // true면 모든 뉴스 표시, false면 고정 게시물만 표시 (기본값: true)
@@ -19,6 +22,7 @@ export default function NewsContent({ showAll = true }: NewsContentProps = {}) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const isAdmin = user?.email === ADMIN_EMAIL
 
   useEffect(() => {
     fetchNews()
@@ -200,6 +204,43 @@ export default function NewsContent({ showAll = true }: NewsContentProps = {}) {
 
       return (
         <div>
+          {/* 페이지 제목 및 설명 */}
+          {showAll && (
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold text-gray-900 mb-3">최신 AI 소식</h1>
+              <p className="text-gray-600 text-base">
+                AI 뉴스 큐레이션 공간입니다. 최신 기사를 읽고 자유롭게 의견을 나누며 인사이트를 공유하세요.
+              </p>
+            </div>
+          )}
+          
+          {/* 대시보드용 제목 (showAll이 false일 때) */}
+          {!showAll && (
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">최신 AI 소식</h2>
+              {pinnedNews.length > 0 && (
+                <Link
+                  href="/dashboard?tab=news"
+                  className="text-ok-primary hover:text-ok-dark font-semibold text-sm flex items-center gap-1"
+                >
+                  뉴스 전체보기 →
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* 글쓰기 버튼 */}
+          {showAll && isAdmin && (
+            <div className="mb-6 flex justify-end">
+              <Link
+                href="/news/new"
+                className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+              >
+                글쓰기
+              </Link>
+            </div>
+          )}
+
           {/* 뉴스 목록 */}
           {news.length === 0 ? (
             <div className="text-center py-12">
@@ -219,20 +260,6 @@ export default function NewsContent({ showAll = true }: NewsContentProps = {}) {
                 </div>
               )}
 
-              {/* 전체보기 모드가 아닐 때만 "기사 전체보기" 버튼 표시 */}
-              {!showAll && pinnedNews.length > 0 && (
-                <div className="flex justify-center pt-4">
-                  <a
-                    href="/dashboard?tab=news"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg font-medium transition-colors"
-                  >
-                    아티클 전체보기
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </a>
-                </div>
-              )}
 
               {/* 전체보기 모드일 때만 일반 게시물 목록 표시 */}
               {showAll && regularNews.length > 0 && (

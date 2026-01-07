@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import NewsCommentList from './NewsCommentList'
-import NewsCommentForm from './NewsCommentForm'
-import type { NewsComment } from '@/lib/types/database'
+import CaseCommentList from './CaseCommentList'
+import CaseCommentForm from './CaseCommentForm'
+import type { Comment } from '@/lib/types/database'
 
-interface NewsCommentSectionProps {
-  newsId: string
+interface CaseCommentSectionProps {
+  caseId: string
 }
 
-export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) {
+export default function CaseCommentSection({ caseId }: CaseCommentSectionProps) {
   const { user } = useAuth()
-  const [comments, setComments] = useState<NewsComment[]>([])
+  const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchComments = async () => {
@@ -23,13 +23,13 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
       
       // 먼저 댓글만 조회
       const { data: commentsData, error: commentsError } = await supabase
-        .from('news_comments')
+        .from('case_comments')
         .select('*')
-        .eq('news_id', newsId)
+        .eq('case_id', caseId)
         .order('created_at', { ascending: true })
       
       if (commentsError) {
-        console.error('댓글 조회 오류:', commentsError)
+        console.error('댓글 불러오기 오류:', commentsError)
         setComments([])
         setLoading(false)
         return
@@ -41,9 +41,9 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
         return
       }
 
-      // 각 댓글의 프로필 정보 조회
+      // 각 댓글의 프로필 정보를 별도로 조회
       const commentsWithProfiles = await Promise.all(
-        commentsData.map(async (comment) => {
+        commentsData.map(async (comment: any) => {
           const { data: profile } = await supabase
             .from('profiles')
             .select('email, name, nickname, avatar_url, company, team, position')
@@ -52,14 +52,30 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
 
           return {
             ...comment,
-            user: profile || null,
-          } as NewsComment
+            user: profile ? {
+              email: profile.email || null,
+              name: profile.name || null,
+              nickname: profile.nickname || null,
+              avatar_url: profile.avatar_url || null,
+              company: profile.company || null,
+              team: profile.team || null,
+              position: profile.position || null,
+            } : {
+              email: null,
+              name: null,
+              nickname: null,
+              avatar_url: null,
+              company: null,
+              team: null,
+              position: null,
+            },
+          }
         })
       )
 
       setComments(commentsWithProfiles)
     } catch (error) {
-      console.error('댓글 조회 예외:', error)
+      console.error('댓글 불러오기 오류:', error)
       setComments([])
     } finally {
       setLoading(false)
@@ -68,7 +84,7 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
 
   useEffect(() => {
     fetchComments()
-  }, [newsId])
+  }, [caseId])
 
   const handleCommentAdded = () => {
     fetchComments()
@@ -86,10 +102,7 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
     <div className="pt-6">
       {/* 댓글 입력창 */}
       {user ? (
-        <NewsCommentForm
-          newsId={newsId}
-          onCommentAdded={handleCommentAdded}
-        />
+        <CaseCommentForm caseId={caseId} onCommentAdded={handleCommentAdded} />
       ) : (
         <div className="mb-4 p-4 bg-gray-50 rounded-xl text-center text-gray-600">
           댓글을 작성하려면 <a href="/login" className="text-ok-primary hover:underline">로그인</a>이 필요합니다.
@@ -101,10 +114,10 @@ export default function NewsCommentSection({ newsId }: NewsCommentSectionProps) 
         <div className="text-center py-8 text-gray-500">로딩 중...</div>
       ) : comments.length > 0 ? (
         <div className="mt-6">
-          <NewsCommentList
+          <CaseCommentList
             comments={comments}
             currentUserId={user?.id}
-            newsId={newsId}
+            caseId={caseId}
             onCommentUpdated={handleCommentUpdated}
             onCommentDeleted={handleCommentDeleted}
           />

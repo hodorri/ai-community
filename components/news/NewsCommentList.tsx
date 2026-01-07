@@ -38,6 +38,8 @@ function NewsCommentItem({
   const [isReplying, setIsReplying] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [isLiked, setIsLiked] = useState(false)
+  const [likesCount, setLikesCount] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 메뉴 외부 클릭 시 닫기
@@ -82,6 +84,72 @@ function NewsCommentItem({
   })()
 
   const isOwner = currentUserId === comment.user_id
+
+  // 좋아요 상태 및 개수 조회
+  useEffect(() => {
+    async function fetchLikes() {
+      // 좋아요 개수 조회
+      const { count } = await supabase
+        .from('news_comment_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('comment_id', comment.id)
+      
+      setLikesCount(count || 0)
+
+      // 현재 사용자 좋아요 여부 확인
+      if (currentUserId) {
+        const { data: likeData } = await supabase
+          .from('news_comment_likes')
+          .select('id')
+          .eq('comment_id', comment.id)
+          .eq('user_id', currentUserId)
+          .maybeSingle()
+        
+        setIsLiked(!!likeData)
+      }
+    }
+
+    fetchLikes()
+  }, [comment.id, currentUserId, supabase])
+
+  const handleLike = async () => {
+    if (!currentUserId) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+
+    try {
+      const { data: existingLike } = await supabase
+        .from('news_comment_likes')
+        .select('id')
+        .eq('comment_id', comment.id)
+        .eq('user_id', currentUserId)
+        .maybeSingle()
+
+      if (existingLike) {
+        // 좋아요 취소
+        await supabase
+          .from('news_comment_likes')
+          .delete()
+          .eq('id', existingLike.id)
+        setIsLiked(false)
+        setLikesCount(prev => Math.max(0, prev - 1))
+      } else {
+        // 좋아요 추가
+        await supabase
+          .from('news_comment_likes')
+          .insert({
+            comment_id: comment.id,
+            user_id: currentUserId,
+          })
+        setIsLiked(true)
+        setLikesCount(prev => prev + 1)
+      }
+    } catch (error) {
+      console.error('댓글 좋아요 처리 오류:', error)
+      alert('좋아요 처리에 실패했습니다.')
+    }
+  }
 
   const handleEdit = () => {
     setIsEditing(true)
@@ -250,11 +318,18 @@ function NewsCommentItem({
               
               {/* 좋아요 및 답변 버튼 */}
               <div className="flex items-center gap-4 mt-2">
-                <button className="flex items-center gap-1 text-gray-600 hover:text-red-500 transition-colors">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button 
+                  onClick={handleLike}
+                  className={`flex items-center gap-1 transition-colors ${
+                    isLiked 
+                      ? 'text-red-500' 
+                      : 'text-gray-600 hover:text-red-500'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill={isLiked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
-                  <span className="text-sm">좋아요</span>
+                  <span className="text-sm">{likesCount > 0 ? likesCount : ''} 좋아요</span>
                 </button>
                 <button
                   onClick={() => setIsReplying(!isReplying)}
@@ -343,15 +418,11 @@ export default function NewsCommentList({
   const topLevelComments = comments.filter(c => !c.parent_id)
 
   if (topLevelComments.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
-      </div>
-    )
+    return <div className="text-center py-8 text-gray-500">아직 댓글이 없습니다.</div>
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mt-6">
       {topLevelComments.map((comment) => (
         <NewsCommentItem
           key={comment.id}

@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
+import { useProfile } from '@/hooks/useProfile'
 import { createClient } from '@/lib/supabase/client'
+import Image from 'next/image'
 
 interface NewsCommentFormProps {
   newsId: string
@@ -14,21 +15,23 @@ interface NewsCommentFormProps {
 
 export default function NewsCommentForm({ newsId, parentId = null, onCommentAdded, onCancel }: NewsCommentFormProps) {
   const { user } = useAuth()
-  const router = useRouter()
-  const supabase = createClient()
+  const { profile } = useProfile()
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
 
-    if (!user) {
-      router.push('/login')
+    if (!content.trim()) {
+      setError('댓글 내용을 입력해주세요.')
       return
     }
 
-    if (!content.trim()) {
-      alert('댓글 내용을 입력해주세요.')
+    if (!user) {
+      setError('로그인이 필요합니다.')
       return
     }
 
@@ -45,7 +48,7 @@ export default function NewsCommentForm({ newsId, parentId = null, onCommentAdde
         })
 
       if (error) {
-        throw error
+        throw new Error(error.message || '댓글 작성에 실패했습니다.')
       }
 
       setContent('')
@@ -53,17 +56,40 @@ export default function NewsCommentForm({ newsId, parentId = null, onCommentAdde
       if (onCancel) {
         onCancel()
       }
-    } catch (error: any) {
-      console.error('댓글 작성 오류:', error)
-      alert(error.message || '댓글 작성에 실패했습니다.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
   }
 
+  if (!user) return null
+
+  const displayName = profile?.nickname || profile?.name || user.email?.split('@')[0] || '사용자'
+  const avatarUrl = profile?.avatar_url
+  const initial = displayName.charAt(0).toUpperCase()
+
   return (
     <form onSubmit={handleSubmit} className="mb-6">
       <div className="flex items-start gap-3">
+        {/* 프로필 사진 */}
+        {avatarUrl ? (
+          <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+            <Image
+              src={avatarUrl}
+              alt={displayName}
+              fill
+              className="object-cover"
+              sizes="40px"
+            />
+          </div>
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-pink-200 flex items-center justify-center text-pink-700 font-semibold text-sm flex-shrink-0">
+            {initial}
+          </div>
+        )}
+        
+        {/* 댓글 입력 필드 */}
         <div className="flex-1">
           <input
             type="text"
@@ -72,26 +98,27 @@ export default function NewsCommentForm({ newsId, parentId = null, onCommentAdde
             placeholder={parentId ? "답글을 입력하세요..." : "귀하의 생각은 무엇입니까?"}
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors"
             disabled={loading}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit(e as any)
+              }
+            }}
           />
-        </div>
-        <div className="flex gap-2">
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-3 text-gray-600 hover:text-gray-800 transition-colors"
-              disabled={loading}
-            >
-              취소
-            </button>
+          {error && (
+            <div className="mt-2 text-sm text-red-500">{error}</div>
           )}
-          <button
-            type="submit"
-            className="px-6 py-3 bg-ok-primary text-white rounded-xl font-semibold hover:bg-ok-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={loading || !content.trim()}
-          >
-            {loading ? '작성 중...' : '작성'}
-          </button>
+          {onCancel && (
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                취소
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </form>

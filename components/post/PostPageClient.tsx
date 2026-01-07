@@ -179,7 +179,7 @@ export default function PostPageClient({ postId }: PostPageClientProps) {
             isLiked={isLiked}
             currentUserId={currentUserId}
           />
-          <div className="px-6 sm:px-8 pb-6">
+          <div className="px-6 sm:px-8 pb-6 border-t">
             <CommentSection postId={postId} />
           </div>
         </div>

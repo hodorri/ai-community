@@ -154,73 +154,76 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
   const timeAgo = getTimeAgo(new Date(post.created_at))
 
   return (
-    <div>
-      {/* 상단 네비게이션 */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b">
+    <div className="p-6 sm:p-8">
+      {/* 헤더 - 목록으로 돌아가기, 카테고리, 고정 버튼 및 메뉴 */}
+      <div className="relative flex items-center justify-between mb-6">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/dashboard?tab=diary')}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
+          <span className="text-sm">목록으로</span>
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-lg">💡</span>
-          <span className="text-sm font-medium text-gray-700">AI 활용 사례</span>
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+          {isPinned && (
+            <span className="text-yellow-500 text-lg" title="고정된 게시물">📌</span>
+          )}
+          <span className="text-sm text-gray-600">💡 AI 개발일지</span>
         </div>
-        <div className="flex items-center gap-2">
-          {isAdmin && (
+        {(isAdmin || isOwner) ? (
+          <div className="relative" ref={menuRef}>
             <button
-              onClick={handleTogglePin}
-              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                isPinned
-                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title={isPinned ? '고정 해제' : '상단 고정'}
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
             >
-              {isPinned ? '📌 고정됨' : '📌 고정'}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
             </button>
-          )}
-          {isOwner && (
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="text-gray-600 hover:text-gray-900 transition-colors p-1"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+            {showMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                {isAdmin && (
                   <button
-                    onClick={() => {
-                      setShowMenu(false)
-                      router.push(`/post/${post.id}/edit`)
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    onClick={handleTogglePin}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 first:rounded-t-lg"
                   >
-                    내용 수정하기
+                    {isPinned ? '고정 해제' : '상단 고정'}
                   </button>
-                  <button
-                    onClick={() => {
-                      setShowMenu(false)
-                      handleDelete()
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    삭제하기
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+                {isOwner && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        router.push(`/post/${post.id}/edit`)
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      수정하기
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowMenu(false)
+                        handleDelete()
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 last:rounded-b-lg"
+                    >
+                      삭제하기
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div></div>
+        )}
       </div>
 
-      {/* 작성자 정보 */}
+      <div>
+        {/* 작성자 정보 */}
       <div className="flex items-center gap-3 mb-6">
         {avatarUrl ? (
           <div className="relative w-12 h-12 rounded-full overflow-hidden">
@@ -245,7 +248,7 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
             </div>
           )}
           <div className="text-sm text-gray-500">
-            {timeAgo} · AI 활용 사례에 게시됨
+            {timeAgo} · AI 개발일지에 게시됨
           </div>
         </div>
       </div>
@@ -279,6 +282,7 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
           </svg>
           <span className="font-medium text-sm">좋아요</span>
         </button>
+      </div>
       </div>
     </div>
   )
