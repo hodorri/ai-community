@@ -39,6 +39,13 @@ export async function POST(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
     const adminUrl = `${siteUrl}/admin`
 
+    console.log('[이메일 알림] Resend API 호출 시작:', {
+      to: ADMIN_EMAIL,
+      subject: `[승인 필요] 새 사용자 가입: ${userName || userEmail}`,
+      hasApiKey: !!RESEND_API_KEY,
+      apiKeyLength: RESEND_API_KEY?.length || 0
+    })
+
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -76,16 +83,38 @@ export async function POST(request: NextRequest) {
       }),
     })
 
+    const responseText = await emailResponse.text()
+    console.log('[이메일 알림] Resend API 응답 상태:', emailResponse.status, emailResponse.statusText)
+    console.log('[이메일 알림] Resend API 응답 본문:', responseText)
+
     if (!emailResponse.ok) {
-      const errorData = await emailResponse.json()
-      console.error('Resend API 오류:', errorData)
+      let errorData
+      try {
+        errorData = JSON.parse(responseText)
+      } catch {
+        errorData = { message: responseText }
+      }
+      console.error('[이메일 알림] Resend API 오류:', errorData)
       return NextResponse.json({ 
         success: false, 
-        error: '이메일 발송 실패' 
+        error: '이메일 발송 실패',
+        details: errorData,
+        status: emailResponse.status
       }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    let successData
+    try {
+      successData = JSON.parse(responseText)
+    } catch {
+      successData = { message: responseText }
+    }
+    console.log('[이메일 알림] 이메일 발송 성공:', successData)
+
+    return NextResponse.json({ 
+      success: true,
+      data: successData
+    })
   } catch (error) {
     console.error('이메일 발송 오류:', error)
     return NextResponse.json({ 
