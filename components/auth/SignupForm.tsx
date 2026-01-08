@@ -321,6 +321,7 @@ export default function SignupForm() {
 
     // 관리자에게 이메일 알림 발송 (회원가입 폼에서 입력한 값 직접 전달)
     try {
+      console.log('[회원가입] 관리자 알림 발송 시도')
       const notifyResponse = await fetch('/api/notify-admin', {
         method: 'POST',
         headers: {
@@ -336,11 +337,17 @@ export default function SignupForm() {
         }),
       })
 
-      if (!notifyResponse.ok) {
-        console.error('관리자 알림 발송 실패:', await notifyResponse.text())
+      const notifyResult = await notifyResponse.json()
+
+      if (!notifyResponse.ok || !notifyResult.success) {
+        console.error('[회원가입] 관리자 알림 발송 실패:', notifyResult)
+        // 이메일 발송 실패는 경고만 하고 회원가입은 성공으로 처리
+        console.warn('[회원가입] 이메일 알림이 발송되지 않았습니다. 관리자에게 수동으로 알려주세요.')
+      } else {
+        console.log('[회원가입] 관리자 알림 발송 성공')
       }
     } catch (err) {
-      console.error('관리자 알림 발송 실패:', err)
+      console.error('[회원가입] 관리자 알림 발송 예외:', err)
       // 이메일 발송 실패해도 회원가입은 성공으로 처리
     }
 

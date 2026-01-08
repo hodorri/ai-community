@@ -13,13 +13,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (!RESEND_API_KEY) {
-      // Resend API 키가 없으면 간단한 로그만 남기고 성공 반환
-      console.log(`[이메일 알림] 새 사용자 가입: ${userEmail}`)
-      console.log(`[관리자 승인 필요] ${ADMIN_EMAIL}에게 알림 필요`)
+      // Resend API 키가 없으면 에러 로그 남기고 실패 반환
+      console.error(`[이메일 알림] RESEND_API_KEY가 설정되지 않았습니다.`)
+      console.error(`[이메일 알림] 새 사용자 가입: ${userEmail}`)
+      console.error(`[이메일 알림] 관리자 승인 필요: ${ADMIN_EMAIL || 'ADMIN_EMAIL 미설정'}`)
       return NextResponse.json({ 
-        success: true, 
-        message: '이메일 서비스가 설정되지 않았습니다. 콘솔에 로그를 확인하세요.' 
-      })
+        success: false, 
+        error: 'RESEND_API_KEY 환경 변수가 설정되지 않았습니다.',
+        message: 'Vercel 대시보드 > Environment Variables에서 RESEND_API_KEY를 설정해야 합니다.',
+        hint: 'Resend.com에서 API 키를 발급받아 설정하세요.'
+      }, { status: 500 })
+    }
+
+    if (!ADMIN_EMAIL) {
+      console.error(`[이메일 알림] NEXT_PUBLIC_ADMIN_EMAIL이 설정되지 않았습니다.`)
+      return NextResponse.json({ 
+        success: false, 
+        error: 'NEXT_PUBLIC_ADMIN_EMAIL 환경 변수가 설정되지 않았습니다.',
+        message: '관리자 이메일 주소를 설정해야 합니다.',
+        hint: 'Vercel 대시보드 > Environment Variables에서 NEXT_PUBLIC_ADMIN_EMAIL을 설정하세요.'
+      }, { status: 500 })
     }
 
     // Resend API를 사용한 이메일 발송
