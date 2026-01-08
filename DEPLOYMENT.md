@@ -10,10 +10,14 @@ npm run build
 
 ### 2. 환경 변수 확인
 다음 환경 변수들이 설정되어 있는지 확인하세요:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL` (필수)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` (필수)
+- `SUPABASE_SERVICE_ROLE_KEY` (필수 - 회원가입 프로필 저장용)
 - `NEXT_PUBLIC_ADMIN_EMAIL` (관리자 이메일)
 - `RESEND_API_KEY` (이메일 발송용, 선택사항)
+
+⚠️ **중요**: `SUPABASE_SERVICE_ROLE_KEY`는 회원가입 시 프로필 저장을 위해 필수입니다. 
+이 키는 Supabase 대시보드 > Settings > API에서 확인할 수 있습니다.
 
 ## Vercel 배포 (권장)
 
@@ -56,10 +60,13 @@ git push origin main
 
 3. **환경 변수 설정**
    - Project Settings > Environment Variables에서 다음 변수 추가:
-     - `NEXT_PUBLIC_SUPABASE_URL`
-     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+     - `NEXT_PUBLIC_SUPABASE_URL` (필수)
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (필수)
+     - `SUPABASE_SERVICE_ROLE_KEY` (필수 - 회원가입 프로필 저장용)
      - `NEXT_PUBLIC_ADMIN_EMAIL`
      - `RESEND_API_KEY` (이메일 발송 사용 시)
+   
+   ⚠️ **각 환경(Production, Preview, Development)에 대해 변수를 모두 추가해야 합니다.**
 
 4. **배포 설정**
    - Framework Preset: Next.js

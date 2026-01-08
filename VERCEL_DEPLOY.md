@@ -28,11 +28,16 @@
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 NEXT_PUBLIC_ADMIN_EMAIL=your_admin_email
 RESEND_API_KEY=your_resend_api_key (선택사항)
 ```
 
 **각 환경(Production, Preview, Development)에 대해 변수를 추가해야 합니다.**
+
+⚠️ **중요**: `SUPABASE_SERVICE_ROLE_KEY`는 회원가입 시 프로필 저장을 위해 필수입니다. 
+이 키는 Supabase 대시보드 > Settings > API에서 확인할 수 있습니다. 
+⚠️ **보안**: 이 키는 서버 사이드에서만 사용되며, 클라이언트에 노출되면 안 됩니다.
 
 ### 5단계: 배포 실행
 1. "Deploy" 버튼 클릭

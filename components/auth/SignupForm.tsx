@@ -143,14 +143,37 @@ export default function SignupForm() {
         }),
       })
 
-      const profileResult = await profileResponse.json()
+      let profileResult
+      try {
+        profileResult = await profileResponse.json()
+      } catch (parseError) {
+        console.error('[회원가입] API 응답 파싱 오류:', parseError)
+        const textResponse = await profileResponse.text()
+        console.error('[회원가입] API 원본 응답:', textResponse)
+        lastError = {
+          error: '서버 응답을 파싱할 수 없습니다.',
+          details: textResponse.substring(0, 200),
+          status: profileResponse.status
+        }
+        throw new Error('API 응답 파싱 실패')
+      }
 
       if (profileResponse.ok && profileResult.success) {
         console.log('[회원가입] API를 통한 프로필 저장 성공:', profileResult.data)
         profileSaved = true
       } else {
-        console.error('[회원가입] API를 통한 프로필 저장 실패:', profileResult)
-        lastError = profileResult
+        console.error('[회원가입] API를 통한 프로필 저장 실패:', {
+          status: profileResponse.status,
+          statusText: profileResponse.statusText,
+          result: profileResult
+        })
+        // 모든 에러 정보를 저장
+        lastError = {
+          ...profileResult,
+          status: profileResponse.status,
+          statusText: profileResponse.statusText,
+          hint: profileResult.hint || profileResult.details || '서버 오류가 발생했습니다.'
+        }
       }
     } catch (err: any) {
       console.error('[회원가입] API 호출 예외:', err)
@@ -191,7 +214,7 @@ export default function SignupForm() {
             .update(updateData)
             .eq('id', data.user.id)
             .select()
-            .single()
+            .maybeSingle()
 
           if (!updateError && updatedProfile) {
             console.log('[회원가입] 프로필 업데이트 성공:', updatedProfile)
@@ -199,7 +222,13 @@ export default function SignupForm() {
             break
           } else {
             console.error('[회원가입] 프로필 업데이트 오류:', updateError)
-            lastError = updateError
+            // 406 에러인 경우 RLS 정책 문제일 수 있음
+            if (updateError?.code === 'PGRST116' || updateError?.message?.includes('406')) {
+              console.warn('[회원가입] RLS 정책으로 인한 업데이트 실패, API 라우트를 통해 재시도 필요')
+              lastError = { ...updateError, hint: 'RLS 정책 문제일 수 있습니다. 서버 로그를 확인해주세요.' }
+            } else {
+              lastError = updateError
+            }
           }
         } else {
           // 프로필이 없으면 생성 시도
@@ -244,7 +273,31 @@ export default function SignupForm() {
 
     if (!profileSaved) {
       console.error('[회원가입] 프로필 저장 실패: 최대 재시도 횟수 초과', lastError)
-      setError(`프로필 저장에 실패했습니다: ${lastError?.message || lastError?.error || '알 수 없는 오류'}. 관리자에게 문의해주세요.`)
+      
+      // 에러 메시지 구성
+      let errorMessage = '프로필 저장에 실패했습니다.'
+      
+      if (lastError?.error) {
+        errorMessage = lastError.error
+      }
+      
+      if (lastError?.details) {
+        errorMessage += `\n${lastError.details}`
+      }
+      
+      if (lastError?.hint) {
+        errorMessage += `\n\n💡 ${lastError.hint}`
+      }
+      
+      if (lastError?.code) {
+        errorMessage += `\n\n에러 코드: ${lastError.code}`
+      }
+      
+      if (lastError?.status === 500 && lastError?.error?.includes('SUPABASE_SERVICE_ROLE_KEY')) {
+        errorMessage += '\n\n⚠️ 환경 변수를 추가한 후 Vercel에서 반드시 재배포해야 합니다!'
+      }
+      
+      setError(errorMessage)
       setLoading(false)
       return
     }
