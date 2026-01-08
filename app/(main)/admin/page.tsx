@@ -180,26 +180,29 @@ export default function AdminPage() {
 
   const handleApprove = async (userId: string) => {
     try {
-      // 클라이언트 사이드에서 직접 업데이트 (RLS 정책이 관리자 업데이트를 허용)
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ status: 'approved' })
-        .eq('id', userId)
-        .select()
-        .single()
+      // API 라우트를 통해 승인 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, status: 'approved' }),
+      })
 
-      if (error) {
-        console.error('승인 오류:', error)
-        alert('승인 실패: ' + error.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error('승인 오류:', result)
+        alert('승인 실패: ' + (result.error || '알 수 없는 오류'))
         return
       }
 
       alert('승인 완료!')
       // 목록 새로고침
       fetchAllUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error approving user:', error)
-      alert('승인 중 오류가 발생했습니다.')
+      alert('승인 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
 
@@ -207,26 +210,29 @@ export default function AdminPage() {
     if (!confirm('정말 거부하시겠습니까?')) return
 
     try {
-      // 클라이언트 사이드에서 직접 업데이트 (RLS 정책이 관리자 업데이트를 허용)
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ status: 'rejected' })
-        .eq('id', userId)
-        .select()
-        .single()
+      // API 라우트를 통해 거부 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId, status: 'rejected' }),
+      })
 
-      if (error) {
-        console.error('거부 오류:', error)
-        alert('거부 실패: ' + error.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        console.error('거부 오류:', result)
+        alert('거부 실패: ' + (result.error || '알 수 없는 오류'))
         return
       }
 
       alert('거부 완료!')
       // 목록 새로고침
       fetchAllUsers()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error rejecting user:', error)
-      alert('거부 중 오류가 발생했습니다.')
+      alert('거부 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
 

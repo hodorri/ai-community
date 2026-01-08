@@ -7,7 +7,7 @@ import ApprovalBanner from '@/components/ApprovalBanner'
 import TabNavigation from '@/components/TabNavigation'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'guide' | 'diary' | 'news' | 'cases' | 'study'
+type TabType = 'all' | 'guide' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 function MainLayoutContent({
   children,
@@ -34,7 +34,7 @@ function MainLayoutContent({
     // 대시보드 페이지인 경우
     if (pathname === '/dashboard') {
       const tabParam = searchParams.get('tab')
-      if (tabParam && ['all', 'guide', 'diary', 'news', 'cases', 'study'].includes(tabParam)) {
+      if (tabParam && ['all', 'guide', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
         return tabParam as TabType
       }
       return user ? 'all' : 'diary'

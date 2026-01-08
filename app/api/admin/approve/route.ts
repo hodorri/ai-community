@@ -35,13 +35,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 상태입니다.' }, { status: 400 })
     }
 
-    // 직접 프로필 업데이트 (RLS 정책이 관리자 업데이트를 허용)
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ status })
-      .eq('id', userId)
-      .select()
-      .single()
+    // SECURITY DEFINER 함수를 사용하여 프로필 업데이트 (RLS 우회)
+    const { data, error } = await supabase.rpc('approve_user_profile', {
+      target_user_id: userId,
+      new_status: status
+    })
 
     if (error) {
       console.error('프로필 업데이트 오류:', error)
@@ -49,12 +47,26 @@ export async function POST(request: NextRequest) {
       console.error('현재 사용자 ID:', user.id)
       console.error('대상 사용자 ID:', userId)
       
-      return NextResponse.json({ 
-        error: error.message || '프로필 업데이트에 실패했습니다.',
-        details: error,
-        user_id: user.id,
-        target_id: userId
-      }, { status: 500 })
+      // 함수가 없거나 오류가 발생한 경우, 직접 업데이트 시도
+      // (서버 사이드에서는 service role key가 있어야 함)
+      const { data: directData, error: directError } = await supabase
+        .from('profiles')
+        .update({ status })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (directError) {
+        return NextResponse.json({ 
+          error: directError.message || '프로필 업데이트에 실패했습니다.',
+          details: directError,
+          user_id: user.id,
+          target_id: userId,
+          hint: 'approve_user_profile 함수 호출 실패 후 직접 업데이트도 실패'
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, profile: directData })
     }
 
     if (!data) {

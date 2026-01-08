@@ -13,7 +13,7 @@ import NewsContent from '@/components/news/NewsContent'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
-type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study'
+type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 function DashboardContent() {
   const { user, loading: authLoading } = useAuth()
@@ -23,7 +23,7 @@ function DashboardContent() {
   
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['all', 'diary', 'news', 'cases', 'study'].includes(tabParam)) {
+    if (tabParam && ['all', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
       setActiveTab(tabParam as TabType)
     } else if (user) {
       setActiveTab('all')
@@ -95,6 +95,7 @@ function DashboardContent() {
         {activeTab === 'diary' && <DiaryContent />}
         {activeTab === 'news' && <NewsContent />}
         {activeTab === 'study' && <StudyContent showCreateButton={true} showTitle={true} showDescription={true} />}
+        {activeTab === 'activity' && <ActivityContent />}
       </div>
     </div>
   )
@@ -498,6 +499,270 @@ function StudyContent({ showCreateButton = true, showTitle = true, showDescripti
           onClose={() => setShowMyRequests(false)}
         />
       )}
+    </div>
+  )
+}
+
+// 나의 활동 컴포넌트
+function ActivityContent() {
+  const { user } = useAuth()
+  const [activities, setActivities] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) {
+      setLoading(false)
+      return
+    }
+
+    async function fetchMyActivities() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+        
+        // 내가 작성한 게시글 조회
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        
+        if (postsError) throw postsError
+        
+        // 내가 작성한 댓글 조회
+        const { data: commentsData, error: commentsError } = await supabase
+          .from('comments')
+          .select('*, post_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+        
+        if (commentsError) throw commentsError
+        
+        // 게시글 데이터 가공
+        const postsWithMetadata = await Promise.all(
+          (postsData || []).map(async (post: any) => {
+            const [profileResult, likesResult, commentsResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('email, name, nickname, avatar_url, company, team, position')
+                .eq('id', post.user_id)
+                .single(),
+              supabase
+                .from('likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+              supabase
+                .from('comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('post_id', post.id),
+            ])
+
+            return {
+              type: 'post',
+              id: post.id,
+              created_at: post.created_at,
+              user: {
+                email: profileResult.data?.email || null,
+                name: profileResult.data?.name || null,
+                nickname: profileResult.data?.nickname || null,
+                avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
+              },
+              likes_count: likesResult.count || 0,
+              comments_count: commentsResult.count || 0,
+              ...post,
+            }
+          })
+        )
+        
+        // 댓글 데이터 가공
+        const commentsWithMetadata = await Promise.all(
+          (commentsData || []).map(async (comment: any) => {
+            // 댓글이 달린 게시글 정보 가져오기
+            const { data: postData } = await supabase
+              .from('posts')
+              .select('id, title, user_id')
+              .eq('id', comment.post_id)
+              .single()
+            
+            const [profileResult, postProfileResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('email, name, nickname, avatar_url, company, team, position')
+                .eq('id', comment.user_id)
+                .single(),
+              postData ? supabase
+                .from('profiles')
+                .select('email, name, nickname')
+                .eq('id', postData.user_id)
+                .single() : Promise.resolve({ data: null }),
+            ])
+
+            return {
+              type: 'comment',
+              id: comment.id,
+              created_at: comment.created_at,
+              content: comment.content,
+              post_id: comment.post_id,
+              post_title: postData?.title || '삭제된 게시글',
+              post_author: postProfileResult.data?.name || postProfileResult.data?.nickname || '알 수 없음',
+              user: {
+                email: profileResult.data?.email || null,
+                name: profileResult.data?.name || null,
+                nickname: profileResult.data?.nickname || null,
+                avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
+              },
+            }
+          })
+        )
+        
+        // 게시글과 댓글을 합쳐서 시간순으로 정렬
+        const allActivities = [...postsWithMetadata, ...commentsWithMetadata]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 50) // 최대 50개만 표시
+        
+        setActivities(allActivities)
+      } catch (error) {
+        console.error('나의 활동 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchMyActivities()
+  }, [user])
+
+  // 시간 경과 계산 함수
+  const getTimeAgo = (date: Date): string => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (diffInSeconds < 60) return '방금 전'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}일 전`
+    if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)}개월 전`
+    return `${Math.floor(diffInSeconds / 31536000)}년 전`
+  }
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600 mb-4">로그인이 필요합니다.</p>
+        <Link
+          href="/login"
+          className="inline-block bg-ok-primary text-white px-6 py-3 rounded-full font-semibold hover:bg-ok-dark transition-colors"
+        >
+          로그인하기
+        </Link>
+      </div>
+    )
+  }
+
+  // 게시글과 댓글 분리
+  const posts = activities.filter((a: any) => a.type === 'post')
+  const comments = activities.filter((a: any) => a.type === 'comment')
+
+  return (
+    <div>
+      {/* 페이지 제목 및 설명 */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">나의 활동</h1>
+        <p className="text-gray-600 text-base">
+          내가 작성한 게시글과 댓글을 확인할 수 있습니다.
+        </p>
+      </div>
+
+      {/* 좌우 분할 레이아웃 */}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* 좌측: 게시글 */}
+        <div className="flex-1">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">내 게시글</h2>
+          {posts.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+              <p className="text-gray-500 mb-4">작성한 게시글이 없습니다.</p>
+              <Link
+                href="/post/new"
+                className="inline-block bg-ok-primary text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors"
+              >
+                게시글 작성하기
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              {posts.map((post: any) => (
+                <PostListItem key={post.id} post={post} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 우측: 댓글 */}
+        <div className="flex-1">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">내 댓글</h2>
+          {comments.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+              <p className="text-gray-500">작성한 댓글이 없습니다.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              {comments.map((comment: any) => {
+                const displayName = comment.user?.nickname || comment.user?.name || comment.user?.email?.split('@')[0] || '익명'
+                const initial = displayName.charAt(0).toUpperCase()
+                
+                return (
+                  <div key={comment.id} className="border-b border-gray-200 last:border-b-0 p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start gap-3">
+                      {/* 프로필 사진 */}
+                      {comment.user?.avatar_url ? (
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                          <img
+                            src={comment.user.avatar_url}
+                            alt={displayName}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center text-purple-700 font-semibold text-sm flex-shrink-0">
+                          {initial}
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-gray-900">{displayName}</span>
+                          <span className="text-xs text-gray-500">{getTimeAgo(new Date(comment.created_at))}</span>
+                        </div>
+                        
+                        <p className="text-gray-900 mb-3 whitespace-pre-wrap line-clamp-3">{comment.content}</p>
+                        
+                        {/* 댓글이 달린 게시글 링크 */}
+                        <Link
+                          href={`/post/${comment.post_id}`}
+                          className="text-sm text-gray-600 hover:text-ok-primary transition-colors inline-flex items-center gap-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span className="font-medium">{comment.post_title}</span>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
