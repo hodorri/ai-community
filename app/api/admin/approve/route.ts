@@ -6,19 +6,40 @@ const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    // Authorization 헤더에서 토큰 확인
+    const authHeader = request.headers.get('authorization')
+    let user = null
+    let authError = null
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      // 토큰으로 직접 사용자 확인
+      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token)
+      
+      if (!tokenError && tokenUser) {
+        user = tokenUser
+      } else {
+        authError = tokenError
+      }
+    } else {
+      // 쿠키에서 인증 정보 가져오기
+      const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser()
+      user = cookieUser
+      authError = cookieError
+    }
 
     if (authError) {
-      console.error('인증 오류:', authError)
+      console.error('[승인] 인증 오류:', authError)
       return NextResponse.json({ error: '인증 오류: ' + authError.message }, { status: 401 })
     }
 
     if (!user) {
-      console.error('사용자 정보 없음')
+      console.error('[승인] 사용자 정보 없음')
       return NextResponse.json({ error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' }, { status: 401 })
     }
 
-    console.log('현재 사용자:', user.email)
+    console.log('[승인] 현재 사용자:', user.email)
 
     if (user.email !== ADMIN_EMAIL) {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
