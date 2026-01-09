@@ -145,18 +145,19 @@ export default function ProfilePage() {
       }
 
       // API 라우트를 통해 프로필 업데이트 (서버 사이드에서 처리)
+      // 빈 문자열은 null로 변환하여 명시적으로 전달
       const response = await fetch('/api/profile/update', {
         method: 'PATCH',
         headers,
         credentials: 'include',
         body: JSON.stringify({
-          name: name || null,
-          nickname: nickname || null,
+          name: name.trim() === '' ? null : name.trim(),
+          nickname: nickname.trim() === '' ? null : nickname.trim(),
           avatar_url: avatarUrl || null,
-          employee_number: employeeNumber || null,
-          company: company || null,
-          team: team || null,
-          position: position || null,
+          employee_number: employeeNumber.trim() === '' ? null : employeeNumber.trim(),
+          company: company.trim() === '' ? null : company.trim(),
+          team: team.trim() === '' ? null : team.trim(),
+          position: position.trim() === '' ? null : position.trim(),
         }),
       })
 
@@ -222,6 +223,7 @@ export default function ProfilePage() {
                   src={avatarUrl}
                   alt="프로필"
                   fill
+                  sizes="96px"
                   className="object-cover"
                 />
               </div>

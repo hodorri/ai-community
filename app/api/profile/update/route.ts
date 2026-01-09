@@ -59,34 +59,75 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const { name, nickname, avatar_url, employee_number, company, team, position } = body
 
+    // 기존 프로필 조회
+    const { data: existingProfile, error: fetchError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (fetchError) {
+      console.error('[프로필 업데이트] 기존 프로필 조회 오류:', fetchError)
+      return NextResponse.json({ 
+        error: '프로필을 찾을 수 없습니다.',
+        details: fetchError
+      }, { status: 404 })
+    }
+
+    if (!existingProfile) {
+      return NextResponse.json({ 
+        error: '프로필을 찾을 수 없습니다.'
+      }, { status: 404 })
+    }
+
+    // 업데이트할 데이터 구성 (전달된 값만 업데이트)
+    // null이 전달되면 명시적으로 삭제, undefined가 전달되면 기존 값 유지
+    const updateData: any = {
+      updated_at: new Date().toISOString(),
+    }
+
+    // 각 필드가 undefined가 아닌 경우에만 업데이트
+    // null이 전달되면 null로 저장 (명시적 삭제), 값이 있으면 그대로 저장
+    if (name !== undefined) {
+      updateData.name = name === '' ? null : name
+    }
+    if (nickname !== undefined) {
+      updateData.nickname = nickname === '' ? null : nickname
+    }
+    if (avatar_url !== undefined) {
+      updateData.avatar_url = avatar_url === '' ? null : avatar_url
+    }
+    if (employee_number !== undefined) {
+      updateData.employee_number = employee_number === '' ? null : employee_number
+    }
+    if (company !== undefined) {
+      updateData.company = company === '' ? null : company
+    }
+    if (team !== undefined) {
+      updateData.team = team === '' ? null : team
+    }
+    if (position !== undefined) {
+      updateData.position = position === '' ? null : position
+    }
+
     console.log('[프로필 업데이트] 요청:', {
       userId: user.id,
       email: user.email,
-      updateData: {
-        name: name || null,
-        nickname: nickname || null,
-        avatar_url: avatar_url || null,
-        employee_number: employee_number || null,
-        company: company || null,
-        team: team || null,
-        position: position || null,
-      }
+      existingData: {
+        name: existingProfile.name,
+        nickname: existingProfile.nickname,
+        company: existingProfile.company,
+        team: existingProfile.team,
+        position: existingProfile.position,
+      },
+      updateData
     })
 
     // 서비스 롤 키를 사용하여 직접 업데이트 (RLS 우회)
     // 본인 프로필만 업데이트 가능하도록 검증 (이미 위에서 인증 확인 완료)
     const { data: updatedProfile, error: updateError } = await supabase
       .from('profiles')
-      .update({
-        name: name || null,
-        nickname: nickname || null,
-        avatar_url: avatar_url || null,
-        employee_number: employee_number || null,
-        company: company || null,
-        team: team || null,
-        position: position || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('id', user.id)
       .select()
       .single()
