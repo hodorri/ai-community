@@ -134,14 +134,34 @@ export async function POST(request: NextRequest) {
       updated_by: user.id
     }
 
+    // 서비스 롤 키를 사용하여 직접 업데이트 (RLS 우회)
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[가이드 저장] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.')
+      return NextResponse.json({
+        error: '서버 설정 오류: SUPABASE_SERVICE_ROLE_KEY가 필요합니다.',
+        details: '환경 변수를 확인해주세요.'
+      }, { status: 500 })
+    }
+
+    const serviceSupabase = createServiceClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
     let result
     const targetId = existingData?.id || id
     if (targetId) {
       console.log('[가이드 저장 API] 기존 데이터 업데이트 시도:', targetId)
       console.log('[가이드 저장 API] 업데이트할 데이터:', updateData)
       
-      // 기존 데이터 업데이트 (배열로 받기)
-      const { data: updatedDataList, error: updateError } = await supabase
+      // 서비스 롤 키를 사용하여 직접 업데이트 (RLS 우회)
+      const { data: updatedDataList, error: updateError } = await serviceSupabase
         .from('guide_content')
         .update(updateData)
         .eq('id', targetId)
@@ -162,8 +182,8 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('[가이드 저장] 새 데이터 생성 시도')
       
-      // 새 데이터 생성 (배열로 받아서 첫 번째 항목 사용)
-      const { data: insertResultList, error: insertError } = await supabase
+      // 서비스 롤 키를 사용하여 직접 생성 (RLS 우회)
+      const { data: insertResultList, error: insertError } = await serviceSupabase
         .from('guide_content')
         .insert(updateData)
         .select('*')

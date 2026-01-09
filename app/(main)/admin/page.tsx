@@ -10,8 +10,7 @@ import Image from 'next/image'
 // 관리자 이메일 (환경 변수에서 가져오거나 설정)
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
-type TabType = 'users' | 'cops' | 'news' | 'guide'
-type NewsFilterType = 'all' | 'crawled' | 'published'
+type TabType = 'users' | 'cops' | 'guide'
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
@@ -31,37 +30,6 @@ export default function AdminPage() {
   const [editingUsers, setEditingUsers] = useState(false)
   const [editingCops, setEditingCops] = useState(false)
   const [editFormData, setEditFormData] = useState<any>({})
-  const [newsFilter, setNewsFilter] = useState<NewsFilterType>('all')
-  const [uploading, setUploading] = useState(false)
-  // 업로드된 뉴스 (메모리에만 저장, DB 저장 전)
-  const [uploadedNews, setUploadedNews] = useState<Array<{
-    title: string
-    content: string
-    sourceUrl: string
-    sourceSite: string
-    isDuplicate: boolean
-    isPublished: boolean
-  }>>([])
-  // 저장된 뉴스 (crawled_news 테이블에서 가져옴)
-  const [crawledNews, setCrawledNews] = useState<Array<{
-    id: string
-    title: string
-    content: string
-    sourceUrl: string
-    sourceSite: string
-    isDuplicate: boolean
-    isPublished: boolean
-  }>>([])
-  const [selectedUploaded, setSelectedUploaded] = useState<Set<number>>(new Set()) // 업로드된 항목 선택 (인덱스)
-  const [selectedCrawled, setSelectedCrawled] = useState<Set<string>>(new Set()) // 저장된 항목 선택 (ID)
-  const [selectedPublished, setSelectedPublished] = useState<Set<string>>(new Set()) // 게시된 항목 선택 (ID)
-  const [saving, setSaving] = useState(false)
-  const [publishing, setPublishing] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [publishedNews, setPublishedNews] = useState<any[]>([])
-  const [bulkUpdating, setBulkUpdating] = useState(false) // 일괄 수정 중
-  const [bulkUpdateImage, setBulkUpdateImage] = useState<File | null>(null) // 일괄 수정용 이미지 파일
-  const [showBulkUpdateModal, setShowBulkUpdateModal] = useState(false) // 일괄 수정 모달 표시 여부
   // 가이드 편집 관련
   const [guideData, setGuideData] = useState<any>(null)
   const [guideLoading, setGuideLoading] = useState(false)
@@ -284,24 +252,50 @@ export default function AdminPage() {
 
   const handleApproveCop = async (copId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('cops')
-        .update({ status: 'approved' })
-        .eq('id', copId)
-        .select()
-        .single()
+      console.log('[CoP 승인] 시작 - CoP ID:', copId)
+      console.log('[CoP 승인] 현재 로그인 사용자:', user?.email)
+      
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      // API 라우트를 통해 승인 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/approve-cop', {
+        method: 'POST',
+        headers,
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({ copId, status: 'approved' }),
+      })
 
-      if (error) {
-        console.error('CoP 승인 오류:', error)
-        alert('승인 실패: ' + error.message)
+      const result = await response.json()
+      console.log('[CoP 승인] 응답:', { status: response.status, result })
+
+      if (!response.ok) {
+        console.error('[CoP 승인] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`승인 실패: ${result.error}\n${result.details || ''}`)
         return
       }
 
       alert('CoP 승인 완료!')
+      // 목록 새로고침
       fetchAllCops()
-    } catch (error) {
-      console.error('Error approving cop:', error)
-      alert('승인 중 오류가 발생했습니다.')
+    } catch (error: any) {
+      console.error('[CoP 승인] 예외 발생:', error)
+      alert('승인 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
 
@@ -309,24 +303,50 @@ export default function AdminPage() {
     if (!confirm('정말 거부하시겠습니까?')) return
 
     try {
-      const { data, error } = await supabase
-        .from('cops')
-        .update({ status: 'rejected' })
-        .eq('id', copId)
-        .select()
-        .single()
+      console.log('[CoP 거부] 시작 - CoP ID:', copId)
+      console.log('[CoP 거부] 현재 로그인 사용자:', user?.email)
+      
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
+      // API 라우트를 통해 거부 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/approve-cop', {
+        method: 'POST',
+        headers,
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({ copId, status: 'rejected' }),
+      })
 
-      if (error) {
-        console.error('CoP 거부 오류:', error)
-        alert('거부 실패: ' + error.message)
+      const result = await response.json()
+      console.log('[CoP 거부] 응답:', { status: response.status, result })
+
+      if (!response.ok) {
+        console.error('[CoP 거부] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`거부 실패: ${result.error}\n${result.details || ''}`)
         return
       }
 
       alert('CoP 거부 완료!')
+      // 목록 새로고침
       fetchAllCops()
-    } catch (error) {
-      console.error('Error rejecting cop:', error)
-      alert('거부 중 오류가 발생했습니다.')
+    } catch (error: any) {
+      console.error('[CoP 거부] 예외 발생:', error)
+      alert('거부 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
 
@@ -484,124 +504,11 @@ export default function AdminPage() {
     }
   }
 
-  const fetchPublishedNews = async () => {
-    try {
-      // news 테이블과 selected_news 테이블에서 모두 조회
-      const [newsResult, selectedNewsResult] = await Promise.all([
-        supabase
-          .from('news')
-          .select('*')
-          .eq('is_manual', false)
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('selected_news')
-          .select('*')
-          .order('selected_at', { ascending: false })
-          .limit(100),
-      ])
-
-      if (newsResult.error) {
-        console.error('게시된 뉴스 조회 오류:', newsResult.error)
-        return
-      }
-
-      if (selectedNewsResult.error) {
-        console.error('선택된 뉴스 조회 오류:', selectedNewsResult.error)
-        return
-      }
-
-      // 두 테이블의 데이터를 합치고 날짜순으로 정렬
-      const allPublished = [
-        ...(newsResult.data || []).map(item => ({
-          ...item,
-          published_at: item.published_at || item.created_at,
-        })),
-        ...(selectedNewsResult.data || []).map(item => ({
-          ...item,
-          published_at: item.published_at || item.selected_at,
-        })),
-      ].sort((a, b) => {
-        const dateA = new Date(a.published_at || a.created_at || a.selected_at).getTime()
-        const dateB = new Date(b.published_at || b.created_at || b.selected_at).getTime()
-        return dateB - dateA
-      })
-
-      setPublishedNews(allPublished)
-    } catch (error) {
-      console.error('게시된 뉴스 조회 예외:', error)
-    }
-  }
-
-  const fetchCrawledNews = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('crawled_news')
-        .select('*')
-        .order('uploaded_at', { ascending: false })
-        .limit(200)
-
-      if (error) {
-        console.error('크롤링 내역 조회 오류:', error)
-        return
-      }
-
-      // 중복 체크 (이미 news 또는 selected_news에 게시된 것인지)
-      const newsWithStatus = await Promise.all(
-        (data || []).map(async (item) => {
-          // news 테이블 확인
-          const { data: existingNews } = await supabase
-            .from('news')
-            .select('id')
-            .eq('source_url', item.source_url)
-            .maybeSingle()
-
-          // selected_news 테이블 확인 (crawled_news_id로 연결된 항목)
-          const { data: existingSelected } = await supabase
-            .from('selected_news')
-            .select('id')
-            .eq('crawled_news_id', item.id)
-            .maybeSingle()
-
-          // is_published가 true이거나 news/selected_news에 이미 있는 경우 게시됨으로 표시
-          const isPublished = item.is_published || !!existingNews || !!existingSelected
-
-          return {
-            id: item.id,
-            title: item.title,
-            content: item.content || '',
-            sourceUrl: item.source_url || '',
-            sourceSite: item.source_site || '네이버 뉴스',
-            isDuplicate: !!existingNews, // news에 이미 있는 경우만 중복
-            isPublished: isPublished,
-          }
-        })
-      )
-
-      console.log('[크롤링 내역] 조회 완료:', newsWithStatus.length, '개')
-      setCrawledNews(newsWithStatus)
-    } catch (error) {
-      console.error('크롤링 내역 조회 예외:', error)
-    }
-  }
-
   useEffect(() => {
-    if (activeTab === 'news' && isAdmin) {
-      // 게시됨 필터일 때는 게시된 뉴스만 조회
-      if (newsFilter === 'published') {
-        fetchPublishedNews()
-      } else {
-        // 전체 또는 수집 내역 필터일 때
-        fetchPublishedNews()
-        if (newsFilter === 'all' || newsFilter === 'crawled') {
-          fetchCrawledNews()
-        }
-      }
-    }
     if (activeTab === 'guide' && isAdmin) {
       fetchGuideContent()
     }
-  }, [activeTab, isAdmin, newsFilter, supabase])
+  }, [activeTab, isAdmin, supabase])
 
   const fetchGuideContent = async () => {
     try {
@@ -668,591 +575,60 @@ export default function AdminPage() {
 
     try {
       setGuideSaving(true)
+      console.log('[가이드 저장] 시작')
+      console.log('[가이드 저장] 현재 로그인 사용자:', user?.email)
 
-      // 프로필 수정처럼 직접 Supabase로 업데이트
-      const updateData: any = {
-        title: guideData.title || 'OKAI 가이드',
-        welcome_title: guideData.welcome_title || '환영합니다!',
-        welcome_content: guideData.welcome_content || '',
-        features: guideData.features || [],
-        getting_started: guideData.getting_started || [],
-        tips: guideData.tips || [],
-        updated_at: new Date().toISOString(),
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
       }
 
-      // ID가 있으면 업데이트, 없으면 최신 데이터 찾아서 업데이트
-      let targetId = guideData.id
-      
-      if (!targetId) {
-        // 최신 데이터의 ID 가져오기
-        const { data: latestData, error: latestError } = await supabase
-          .from('guide_content')
-          .select('id')
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        if (latestError) {
-          throw new Error('기존 데이터를 찾을 수 없습니다: ' + latestError.message)
-        }
-
-        if (latestData) {
-          targetId = latestData.id
-        }
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
       }
 
-      let error
-      if (targetId) {
-        // 기존 데이터 업데이트
-        const { error: updateError } = await supabase
-          .from('guide_content')
-          .update(updateData)
-          .eq('id', targetId)
+      // API 라우트를 통해 저장 (서버 사이드에서 처리)
+      const response = await fetch('/api/guide', {
+        method: 'POST',
+        headers,
+        credentials: 'include', // 쿠키 포함
+        body: JSON.stringify({
+          id: guideData.id,
+          title: guideData.title || 'OKAI 가이드',
+          welcome_title: guideData.welcome_title || '환영합니다!',
+          welcome_content: guideData.welcome_content || '',
+          features: guideData.features || [],
+          getting_started: guideData.getting_started || [],
+          tips: guideData.tips || [],
+        }),
+      })
 
-        error = updateError
-      } else {
-        // 새 데이터 생성
-        const { error: insertError } = await supabase
-          .from('guide_content')
-          .insert(updateData)
+      const result = await response.json()
+      console.log('[가이드 저장] 응답:', { status: response.status, result })
 
-        error = insertError
-      }
-
-      if (error) {
-        throw new Error(error.message)
+      if (!response.ok) {
+        console.error('[가이드 저장] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`저장 실패: ${result.error}\n${result.details || ''}`)
+        return
       }
 
       // 성공 시 데이터 다시 불러오기
       await fetchGuideContent()
       alert('가이드 내용이 저장되었습니다!')
     } catch (error: any) {
-      console.error('가이드 저장 오류:', error)
-      alert('저장 실패: ' + (error?.message || '알 수 없는 오류'))
+      console.error('[가이드 저장] 예외 발생:', error)
+      alert('저장 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     } finally {
       setGuideSaving(false)
-    }
-  }
-
-  const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    // 파일 확장자 확인
-    const fileName = file.name.toLowerCase()
-    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
-      alert('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.')
-      return
-    }
-
-    try {
-      setUploading(true)
-      setUploadedNews([])
-      setSelectedUploaded(new Set())
-
-      // 세션 토큰 가져오기
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setUploading(false)
-        return
-      }
-
-      // FormData 생성
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch('/api/upload-news-excel', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        let errorMessage = '알 수 없는 오류'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorData.details || errorMessage
-        } catch (e) {
-          errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        setUploadedNews(result.news || [])
-        // 중복이 아닌 항목만 자동 선택
-        const newSelected = new Set<number>()
-        result.news?.forEach((item: any, index: number) => {
-          if (!item.isDuplicate && !item.isPublished) {
-            newSelected.add(index)
-          }
-        })
-        setSelectedUploaded(newSelected)
-        alert(`엑셀 파일 업로드 완료!\n총 ${result.total}개 기사를 불러왔습니다.`)
-      } else {
-        throw new Error(result.error || result.details || '업로드 실패')
-      }
-    } catch (error: any) {
-      console.error('엑셀 업로드 오류:', error)
-      const errorMessage = error?.message || '엑셀 파일 업로드 중 오류가 발생했습니다.'
-      alert(`업로드 실패: ${errorMessage}`)
-    } finally {
-      setUploading(false)
-      // 파일 input 초기화
-      if (event.target) {
-        event.target.value = ''
-      }
-    }
-  }
-
-  // 업로드된 뉴스 선택 토글
-  const handleToggleUploadedSelection = (index: number) => {
-    const newSelected = new Set(selectedUploaded)
-    if (newSelected.has(index)) {
-      newSelected.delete(index)
-    } else {
-      newSelected.add(index)
-    }
-    setSelectedUploaded(newSelected)
-  }
-
-  // 저장된 뉴스 선택 토글
-  const handleToggleCrawledSelection = (id: string) => {
-    const newSelected = new Set(selectedCrawled)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedCrawled(newSelected)
-  }
-
-  const handleSelectAllUploaded = () => {
-    const newSelected = new Set<number>()
-    uploadedNews.forEach((item, index) => {
-      if (!item.isDuplicate && !item.isPublished) {
-        newSelected.add(index)
-      }
-    })
-    setSelectedUploaded(newSelected)
-  }
-
-  const handleDeselectAllUploaded = () => {
-    setSelectedUploaded(new Set())
-  }
-
-  const handleSelectAllCrawled = () => {
-    const newSelected = new Set<string>()
-    crawledNews.forEach((item) => {
-      if (!item.isDuplicate && !item.isPublished && item.id) {
-        newSelected.add(item.id)
-      }
-    })
-    setSelectedCrawled(newSelected)
-  }
-
-  const handleDeselectAllCrawled = () => {
-    setSelectedCrawled(new Set())
-  }
-
-  // 업로드된 항목을 crawled_news에 저장
-  const handleSaveUploadedNews = async () => {
-    if (selectedUploaded.size === 0) {
-      alert('저장할 기사를 선택해주세요.')
-      return
-    }
-
-    if (!confirm(`선택한 ${selectedUploaded.size}개 기사를 저장하시겠습니까?`)) return
-
-    try {
-      setSaving(true)
-
-      // 세션 토큰 가져오기
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setSaving(false)
-        return
-      }
-
-      // 선택한 항목 수집
-      const newsToSave = Array.from(selectedUploaded).map(index => {
-        const item = uploadedNews[index]
-        return {
-          title: item.title,
-          content: item.content,
-          sourceUrl: item.sourceUrl,
-          sourceSite: item.sourceSite,
-        }
-      })
-
-      const response = await fetch('/api/crawled-news/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ newsItems: newsToSave }),
-      })
-
-      if (!response.ok) {
-        let errorMessage = '알 수 없는 오류'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorData.details || errorMessage
-        } catch (e) {
-          errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        let message = `저장 완료!\n${result.saved}개 기사가 저장되었습니다.`
-        if (result.skipped > 0) {
-          message += `\n${result.skipped}개는 중복되어 건너뛰었습니다.`
-        }
-        if (result.errors && result.errors.length > 0) {
-          message += `\n${result.errors.length}개 저장 실패`
-        }
-        alert(message)
-        
-        // 저장된 항목 제거 및 목록 새로고침
-        const remainingNews = uploadedNews.filter((_, index) => !selectedUploaded.has(index))
-        setUploadedNews(remainingNews)
-        setSelectedUploaded(new Set())
-        if (activeTab === 'news') {
-          fetchCrawledNews()
-        }
-      } else {
-        throw new Error(result.error || '저장 실패')
-      }
-    } catch (error: any) {
-      console.error('저장 오류:', error)
-      const errorMessage = error?.message || '저장 중 오류가 발생했습니다.'
-      alert(`저장 실패: ${errorMessage}`)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  // 저장된 항목을 news에 게시
-  const handlePublishCrawledNews = async () => {
-    if (selectedCrawled.size === 0) {
-      alert('게시할 기사를 선택해주세요.')
-      return
-    }
-
-    if (!confirm(`선택한 ${selectedCrawled.size}개 기사를 게시하시겠습니까?`)) return
-
-    try {
-      setPublishing(true)
-
-      // 세션 토큰 가져오기
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setPublishing(false)
-        return
-      }
-
-      // 선택한 항목의 ID 수집 (서버에서 필터링하므로 모든 선택된 ID 전송)
-      const crawledNewsIds = Array.from(selectedCrawled).filter((id): id is string => {
-        const item = crawledNews.find(n => n.id === id)
-        // 항목이 존재하는지만 확인 (중복/게시 여부는 서버에서 처리)
-        return !!item
-      })
-
-      if (crawledNewsIds.length === 0) {
-        alert('게시할 항목을 선택해주세요.')
-        setPublishing(false)
-        return
-      }
-
-      console.log('[게시] 선택된 ID:', crawledNewsIds)
-
-      const response = await fetch('/api/crawled-news/publish', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ crawledNewsIds }),
-      })
-
-      if (!response.ok) {
-        let errorMessage = '알 수 없는 오류'
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.error || errorData.details || errorMessage
-        } catch (e) {
-          errorMessage = `HTTP ${response.status}: ${response.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        let message = `게시 완료!\n${result.published}개 기사가 게시되었습니다.`
-        if (result.skipped > 0) {
-          message += `\n${result.skipped}개는 중복되어 건너뛰었습니다.`
-        }
-        if (result.errors && result.errors.length > 0) {
-          message += `\n${result.errors.length}개 게시 실패`
-        }
-        alert(message)
-        
-        // 선택 초기화 및 목록 새로고침
-        setSelectedCrawled(new Set())
-        if (activeTab === 'news') {
-          fetchCrawledNews()
-          fetchPublishedNews()
-        }
-      } else {
-        throw new Error(result.error || '게시 실패')
-      }
-    } catch (error: any) {
-      console.error('게시 오류:', error)
-      const errorMessage = error?.message || '게시 중 오류가 발생했습니다.'
-      alert(`게시 실패: ${errorMessage}`)
-    } finally {
-      setPublishing(false)
-    }
-  }
-
-  // 게시된 뉴스 선택 토글
-  const handleTogglePublishedSelection = (id: string) => {
-    const newSelected = new Set(selectedPublished)
-    if (newSelected.has(id)) {
-      newSelected.delete(id)
-    } else {
-      newSelected.add(id)
-    }
-    setSelectedPublished(newSelected)
-  }
-
-  const handleSelectAllPublished = () => {
-    const newSelected = new Set<string>()
-    publishedNews.forEach((item) => {
-      if (item.id) {
-        newSelected.add(item.id)
-      }
-    })
-    setSelectedPublished(newSelected)
-  }
-
-  const handleDeselectAllPublished = () => {
-    setSelectedPublished(new Set())
-  }
-
-  // 수집 내역 삭제
-  const handleDeleteCrawledNews = async () => {
-    if (selectedCrawled.size === 0) {
-      alert('삭제할 기사를 선택해주세요.')
-      return
-    }
-
-    if (!confirm(`선택한 ${selectedCrawled.size}개 기사를 삭제하시겠습니까?`)) return
-
-    try {
-      setDeleting(true)
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setDeleting(false)
-        return
-      }
-
-      const response = await fetch('/api/crawled-news/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ crawledNewsIds: Array.from(selectedCrawled) }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || '삭제 실패')
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        if (result.deleted > 0) {
-          alert(`삭제 완료!\n${result.deleted}개 기사가 삭제되었습니다.`)
-        } else {
-          alert(`삭제할 항목을 찾을 수 없습니다.`)
-        }
-        setSelectedCrawled(new Set())
-        // 목록 강제 새로고침
-        await fetchCrawledNews()
-        // 추가로 약간의 지연 후 다시 한 번 새로고침 (캐시 문제 방지)
-        setTimeout(() => {
-          fetchCrawledNews()
-        }, 500)
-      } else {
-        throw new Error(result.error || '삭제 실패')
-      }
-    } catch (error: any) {
-      console.error('삭제 오류:', error)
-      alert(`삭제 실패: ${error?.message || '알 수 없는 오류'}`)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  // 게시된 뉴스 삭제
-  const handleDeletePublishedNews = async () => {
-    if (selectedPublished.size === 0) {
-      alert('삭제할 기사를 선택해주세요.')
-      return
-    }
-
-    if (!confirm(`선택한 ${selectedPublished.size}개 기사를 삭제하시겠습니까?`)) return
-
-    try {
-      setDeleting(true)
-
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setDeleting(false)
-        return
-      }
-
-      const response = await fetch('/api/selected-news/delete', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({ ids: Array.from(selectedPublished) }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || '삭제 실패')
-      }
-
-      const result = await response.json()
-
-      if (result.success) {
-        alert(`삭제 완료!\n${result.deleted}개 기사가 삭제되었습니다.`)
-        setSelectedPublished(new Set())
-        fetchPublishedNews()
-        // 수집 내역도 새로고침하여 is_published 상태 반영
-        if (newsFilter === 'all' || newsFilter === 'crawled') {
-          fetchCrawledNews()
-        }
-      } else {
-        throw new Error(result.error || '삭제 실패')
-      }
-    } catch (error: any) {
-      console.error('삭제 오류:', error)
-      alert(`삭제 실패: ${error?.message || '알 수 없는 오류'}`)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  // selected_news 일괄 수정 (작성자명과 이미지)
-  const handleBulkUpdateSelectedNews = async () => {
-    if (!bulkUpdateImage) {
-      alert('이미지 파일을 선택해주세요.')
-      return
-    }
-
-    if (!confirm('selected_news의 모든 항목의 작성자명을 \'읏맨\'으로, 이미지를 업로드한 이미지로 일괄 변경하시겠습니까?')) return
-
-    try {
-      setBulkUpdating(true)
-
-      // 먼저 이미지 업로드
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-      
-      if (sessionError || !session) {
-        alert('세션을 가져올 수 없습니다. 다시 로그인해주세요.')
-        setBulkUpdating(false)
-        return
-      }
-
-      // 이미지 업로드
-      const formData = new FormData()
-      formData.append('file', bulkUpdateImage)
-
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: formData,
-      })
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json()
-        throw new Error(errorData.error || '이미지 업로드 실패')
-      }
-
-      const uploadResult = await uploadResponse.json()
-      const imageUrl = uploadResult.url
-
-      // 일괄 업데이트 API 호출
-      const updateResponse = await fetch('/api/selected-news/bulk-update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          authorName: '읏맨',
-          imageUrl: imageUrl,
-        }),
-      })
-
-      if (!updateResponse.ok) {
-        const errorData = await updateResponse.json()
-        throw new Error(errorData.error || '일괄 수정 실패')
-      }
-
-      const updateResult = await updateResponse.json()
-
-      if (updateResult.success) {
-        alert(`일괄 수정 완료!\n${updateResult.updated}개 항목이 수정되었습니다.`)
-        setShowBulkUpdateModal(false)
-        setBulkUpdateImage(null)
-        fetchPublishedNews()
-        // 뉴스 목록도 새로고침
-        window.dispatchEvent(new CustomEvent('news-updated'))
-      } else {
-        throw new Error(updateResult.error || '일괄 수정 실패')
-      }
-    } catch (error: any) {
-      console.error('일괄 수정 오류:', error)
-      alert(`일괄 수정 실패: ${error?.message || '알 수 없는 오류'}`)
-    } finally {
-      setBulkUpdating(false)
     }
   }
 
@@ -1406,16 +782,6 @@ export default function AdminPage() {
               CoP 관리
             </button>
             <button
-              onClick={() => setActiveTab('news')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
-                activeTab === 'news'
-                  ? 'border-ok-primary text-ok-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              뉴스 관리
-            </button>
-            <button
               onClick={() => setActiveTab('guide')}
               className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
                 activeTab === 'guide'
@@ -1426,34 +792,12 @@ export default function AdminPage() {
               가이드 관리
             </button>
           </div>
-            {activeTab === 'news' && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleExcelUpload}
-                  disabled={uploading}
-                  className="hidden"
-                  id="excel-upload-input"
-                />
-                <label
-                  htmlFor="excel-upload-input"
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                    uploading
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      : 'bg-ok-primary text-white hover:bg-ok-dark'
-                  }`}
-                >
-                  {uploading ? '업로드 중...' : '📊 엑셀 파일 업로드'}
-                </label>
-              </div>
-            )}
         </div>
 
-        {activeTab !== 'news' && activeTab !== 'guide' && (
+        {activeTab !== 'guide' && (
           <>
             <p className="text-gray-600 mb-4">
-              {activeTab === 'users' ? '사용자 관리' : activeTab === 'cops' ? 'CoP 관리' : '뉴스 관리'}
+              {activeTab === 'users' ? '사용자 관리' : 'CoP 관리'}
             </p>
             
             {/* 필터 탭 */}
@@ -1613,45 +957,6 @@ export default function AdminPage() {
           </>
         )}
 
-        {activeTab === 'news' && (
-          <>
-            <p className="text-gray-600 mb-4">뉴스 관리</p>
-            
-            {/* 뉴스 필터 탭 */}
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setNewsFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  newsFilter === 'all'
-                    ? 'bg-ok-primary text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                전체
-              </button>
-              <button
-                onClick={() => setNewsFilter('crawled')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  newsFilter === 'crawled'
-                    ? 'bg-ok-primary text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                수집 내역
-              </button>
-              <button
-                onClick={() => setNewsFilter('published')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  newsFilter === 'published'
-                    ? 'bg-ok-primary text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                게시됨
-              </button>
-            </div>
-          </>
-        )}
       </div>
 
       {activeTab === 'users' ? (
@@ -1927,325 +1232,6 @@ export default function AdminPage() {
             </div>
           </div>
         )
-      ) : activeTab === 'news' ? (
-        <>
-          {/* 업로드된 뉴스 (엑셀에서 불러온 것, 아직 저장 안됨) - 전체 필터에서만 표시 */}
-          {newsFilter === 'all' && uploadedNews.length > 0 && (
-            <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">업로드된 뉴스</h3>
-                  <p className="text-sm text-gray-600">
-                    총 {uploadedNews.length}개 기사 · {selectedUploaded.size}개 선택됨
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAllUploaded}
-                    className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    전체 선택
-                  </button>
-                  <button
-                    onClick={handleDeselectAllUploaded}
-                    className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    전체 해제
-                  </button>
-                  <button
-                    onClick={handleSaveUploadedNews}
-                    disabled={saving || selectedUploaded.size === 0}
-                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      saving || selectedUploaded.size === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-ok-primary text-white hover:bg-ok-dark'
-                    }`}
-                  >
-                    {saving ? '저장 중...' : `선택한 ${selectedUploaded.size}개 저장`}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {uploadedNews.map((item, index) => (
-                  <div
-                    key={index}
-                    className={`p-4 border rounded-lg ${
-                      item.isDuplicate || item.isPublished
-                        ? 'bg-gray-50 border-gray-200 opacity-60'
-                        : selectedUploaded.has(index)
-                        ? 'bg-blue-50 border-blue-300'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedUploaded.has(index)}
-                        onChange={() => handleToggleUploadedSelection(index)}
-                        disabled={item.isDuplicate || item.isPublished}
-                        className="mt-1 w-4 h-4 text-ok-primary border-gray-300 rounded focus:ring-ok-primary"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-gray-900 line-clamp-2">{item.title}</h4>
-                          {item.isDuplicate && (
-                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded whitespace-nowrap">
-                              중복
-                            </span>
-                          )}
-                          {item.isPublished && (
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded whitespace-nowrap">
-                              게시됨
-                            </span>
-                          )}
-                        </div>
-                        {item.content && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.content}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                          <span>{item.sourceSite}</span>
-                          {item.sourceUrl && (
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-ok-primary hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              원문 보기 →
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 저장된 뉴스 (crawled_news 테이블에서 가져온 것) - 수집 내역에서 조회 */}
-          {(newsFilter === 'all' || newsFilter === 'crawled') && crawledNews.length > 0 && (
-            <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                    {newsFilter === 'crawled' ? '수집 내역' : '저장된 뉴스'}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    총 {crawledNews.length}개 기사 · {selectedCrawled.size}개 선택됨
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSelectAllCrawled}
-                    className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    전체 선택
-                  </button>
-                  <button
-                    onClick={handleDeselectAllCrawled}
-                    className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    전체 해제
-                  </button>
-                  <button
-                    onClick={handlePublishCrawledNews}
-                    disabled={publishing || selectedCrawled.size === 0}
-                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      publishing || selectedCrawled.size === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-ok-primary text-white hover:bg-ok-dark'
-                    }`}
-                  >
-                    {publishing ? '게시 중...' : `선택한 ${selectedCrawled.size}개 게시`}
-                  </button>
-                  <button
-                    onClick={handleDeleteCrawledNews}
-                    disabled={deleting || selectedCrawled.size === 0}
-                    className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      deleting || selectedCrawled.size === 0
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
-                  >
-                    {deleting ? '삭제 중...' : `선택한 ${selectedCrawled.size}개 삭제`}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {crawledNews.map((item) => (
-                  <div
-                    key={item.id}
-                    className={`p-4 border rounded-lg ${
-                      item.isDuplicate || item.isPublished
-                        ? 'bg-gray-50 border-gray-200 opacity-60'
-                        : selectedCrawled.has(item.id)
-                        ? 'bg-blue-50 border-blue-300'
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedCrawled.has(item.id)}
-                        onChange={() => handleToggleCrawledSelection(item.id)}
-                        disabled={item.isDuplicate || item.isPublished}
-                        className="mt-1 w-4 h-4 text-ok-primary border-gray-300 rounded focus:ring-ok-primary"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-semibold text-gray-900 line-clamp-2">{item.title}</h4>
-                          {item.isDuplicate && (
-                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded whitespace-nowrap">
-                              중복
-                            </span>
-                          )}
-                          {item.isPublished && (
-                            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded whitespace-nowrap">
-                              게시됨
-                            </span>
-                          )}
-                        </div>
-                        {item.content && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.content}</p>
-                        )}
-                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                          <span>{item.sourceSite}</span>
-                          {item.sourceUrl && (
-                            <a
-                              href={item.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-ok-primary hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              원문 보기 →
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* 업로드/저장 내역이 없을 때 */}
-          {newsFilter === 'all' && uploadedNews.length === 0 && crawledNews.length === 0 && (
-            <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-              <p className="text-gray-500">엑셀 파일을 업로드하거나 저장된 내역이 없습니다.</p>
-            </div>
-          )}
-          {newsFilter === 'crawled' && crawledNews.length === 0 && (
-            <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-              <p className="text-gray-500">저장된 뉴스가 없습니다. 엑셀 파일을 업로드하고 저장해주세요.</p>
-            </div>
-          )}
-
-          {/* 게시된 뉴스 (게시됨) */}
-          {newsFilter === 'published' && (
-            publishedNews.length > 0 ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">게시된 뉴스</h3>
-                      <p className="text-sm text-gray-600 mt-1">총 {publishedNews.length}개 · {selectedPublished.size}개 선택됨</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={handleSelectAllPublished}
-                        className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        전체 선택
-                      </button>
-                      <button
-                        onClick={handleDeselectAllPublished}
-                        className="px-3 py-1.5 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        전체 해제
-                      </button>
-                      <button
-                        onClick={() => setShowBulkUpdateModal(true)}
-                        className="px-4 py-1.5 text-sm font-medium rounded-lg transition-colors bg-ok-secondary text-white hover:bg-ok-dark"
-                      >
-                        일괄 수정
-                      </button>
-                      <button
-                        onClick={handleDeletePublishedNews}
-                        disabled={deleting || selectedPublished.size === 0}
-                        className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                          deleting || selectedPublished.size === 0
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-red-500 text-white hover:bg-red-600'
-                        }`}
-                      >
-                        {deleting ? '삭제 중...' : `선택한 ${selectedPublished.size}개 삭제`}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                  {publishedNews.map((item) => (
-                    <div 
-                      key={item.id} 
-                      className={`p-4 transition-colors ${
-                        selectedPublished.has(item.id)
-                          ? 'bg-blue-50 hover:bg-blue-100'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedPublished.has(item.id)}
-                          onChange={() => handleTogglePublishedSelection(item.id)}
-                          className="mt-1 w-4 h-4 text-ok-primary border-gray-300 rounded focus:ring-ok-primary"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 line-clamp-2">{item.title}</h4>
-                          {item.content && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                              {typeof item.content === 'string' 
-                                ? item.content.replace(/<[^>]*>/g, '').substring(0, 100)
-                                : String(item.content).substring(0, 100)}...
-                            </p>
-                          )}
-                          <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                            <span>{item.source_site || '네이버 뉴스'}</span>
-                            <span>·</span>
-                            <span>{new Date(item.published_at || item.selected_at || item.created_at).toLocaleDateString('ko-KR')}</span>
-                            {item.source_url && (
-                              <>
-                                <span>·</span>
-                                <a
-                                  href={item.source_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-ok-primary hover:underline"
-                                >
-                                  원문 보기 →
-                                </a>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl shadow-md p-8 text-center">
-                <p className="text-gray-500">게시된 뉴스가 없습니다.</p>
-              </div>
-            )
-          )}
-        </>
       ) : activeTab === 'guide' ? (
         <div className="bg-white rounded-2xl shadow-md p-8">
           {guideLoading ? (
@@ -2369,25 +1355,25 @@ export default function AdminPage() {
                   시작하기
                 </label>
                 <div className="space-y-2">
-                  {(guideData.getting_started || []).map((item: string, index: number) => (
+                  {(guideData.getting_started || []).map((step: string, index: number) => (
                     <div key={index} className="flex gap-2">
                       <input
                         type="text"
-                        value={item}
+                        value={step}
                         onChange={(e) => {
-                          const newList = [...(guideData.getting_started || [])]
-                          newList[index] = e.target.value
-                          setGuideData({ ...guideData, getting_started: newList })
+                          const newSteps = [...(guideData.getting_started || [])]
+                          newSteps[index] = e.target.value
+                          setGuideData({ ...guideData, getting_started: newSteps })
                         }}
-                        className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-ok-primary"
-                        placeholder={`${index + 1}번 항목`}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder={`단계 ${index + 1}`}
                       />
                       <button
                         onClick={() => {
-                          const newList = (guideData.getting_started || []).filter((_: string, i: number) => i !== index)
-                          setGuideData({ ...guideData, getting_started: newList })
+                          const newSteps = (guideData.getting_started || []).filter((_: string, i: number) => i !== index)
+                          setGuideData({ ...guideData, getting_started: newSteps })
                         }}
-                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                        className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                       >
                         삭제
                       </button>
@@ -2395,12 +1381,12 @@ export default function AdminPage() {
                   ))}
                   <button
                     onClick={() => {
-                      const newList = [...(guideData.getting_started || []), '']
-                      setGuideData({ ...guideData, getting_started: newList })
+                      const newSteps = [...(guideData.getting_started || []), '']
+                      setGuideData({ ...guideData, getting_started: newSteps })
                     }}
                     className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-ok-primary hover:text-ok-primary transition-colors"
                   >
-                    + 항목 추가
+                    + 단계 추가
                   </button>
                 </div>
               </div>
@@ -2416,19 +1402,19 @@ export default function AdminPage() {
                         type="text"
                         value={tip}
                         onChange={(e) => {
-                          const newList = [...(guideData.tips || [])]
-                          newList[index] = e.target.value
-                          setGuideData({ ...guideData, tips: newList })
+                          const newTips = [...(guideData.tips || [])]
+                          newTips[index] = e.target.value
+                          setGuideData({ ...guideData, tips: newTips })
                         }}
-                        className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-ok-primary"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
                         placeholder={`팁 ${index + 1}`}
                       />
                       <button
                         onClick={() => {
-                          const newList = (guideData.tips || []).filter((_: string, i: number) => i !== index)
-                          setGuideData({ ...guideData, tips: newList })
+                          const newTips = (guideData.tips || []).filter((_: string, i: number) => i !== index)
+                          setGuideData({ ...guideData, tips: newTips })
                         }}
-                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
+                        className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                       >
                         삭제
                       </button>
@@ -2436,8 +1422,8 @@ export default function AdminPage() {
                   ))}
                   <button
                     onClick={() => {
-                      const newList = [...(guideData.tips || []), '']
-                      setGuideData({ ...guideData, tips: newList })
+                      const newTips = [...(guideData.tips || []), '']
+                      setGuideData({ ...guideData, tips: newTips })
                     }}
                     className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 hover:border-ok-primary hover:text-ok-primary transition-colors"
                   >
@@ -2446,13 +1432,13 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4 pt-6 border-t border-gray-200">
+              <div className="flex justify-end gap-4 pt-4">
                 <button
                   onClick={handleSaveGuide}
                   disabled={guideSaving}
                   className={`px-6 py-3 rounded-xl font-semibold transition-colors ${
                     guideSaving
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-ok-primary text-white hover:bg-ok-dark'
                   }`}
                 >
@@ -2461,7 +1447,7 @@ export default function AdminPage() {
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500">가이드 내용을 불러올 수 없습니다.</div>
+            <div className="text-center py-12 text-gray-500">데이터를 불러올 수 없습니다.</div>
           )}
         </div>
       ) : null}
@@ -2653,96 +1639,6 @@ export default function AdminPage() {
                 }`}
               >
                 {editingUsers || editingCops ? '수정 중...' : '수정하기'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 일괄 수정 모달 */}
-      {showBulkUpdateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">selected_news 일괄 수정</h2>
-              <button
-                onClick={() => {
-                  setShowBulkUpdateModal(false)
-                  setBulkUpdateImage(null)
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  작성자명
-                </label>
-                <input
-                  type="text"
-                  value="읏맨"
-                  disabled
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl bg-gray-100 text-gray-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">모든 항목의 작성자명이 &quot;읏맨&quot;으로 변경됩니다.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  이미지 파일
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      setBulkUpdateImage(file)
-                    }
-                  }}
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20"
-                />
-                {bulkUpdateImage && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-600">선택된 파일: {bulkUpdateImage.name}</p>
-                    <div className="mt-2 relative w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
-                      <Image
-                        src={URL.createObjectURL(bulkUpdateImage)}
-                        alt="미리보기"
-                        fill
-                        className="object-cover"
-                        sizes="128px"
-                      />
-                    </div>
-                  </div>
-                )}
-                <p className="text-xs text-gray-500 mt-1">모든 항목의 이미지가 업로드한 이미지로 변경됩니다.</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => {
-                  setShowBulkUpdateModal(false)
-                  setBulkUpdateImage(null)
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleBulkUpdateSelectedNews}
-                disabled={bulkUpdating || !bulkUpdateImage}
-                className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors ${
-                  bulkUpdating || !bulkUpdateImage
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-ok-primary hover:bg-ok-dark'
-                }`}
-              >
-                {bulkUpdating ? '수정 중...' : '일괄 수정하기'}
               </button>
             </div>
           </div>
