@@ -161,6 +161,15 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-8">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors mb-4"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          <span className="text-sm">뒤로 돌아가기</span>
+        </button>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">프로필 설정</h1>
         <p className="text-gray-600">계정 정보를 수정할 수 있습니다.</p>
       </div>

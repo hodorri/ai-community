@@ -7,7 +7,7 @@ import ApprovalBanner from '@/components/ApprovalBanner'
 import TabNavigation from '@/components/TabNavigation'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'guide' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 function MainLayoutContent({
   children,
@@ -26,6 +26,11 @@ function MainLayoutContent({
       return 'guide'
     }
     
+    // 가입인사 페이지인 경우
+    if (pathname === '/greeting') {
+      return 'greeting'
+    }
+    
     // AI 활용사례 페이지인 경우
     if (pathname === '/cases') {
       return 'cases'
@@ -34,7 +39,7 @@ function MainLayoutContent({
     // 대시보드 페이지인 경우
     if (pathname === '/dashboard') {
       const tabParam = searchParams.get('tab')
-      if (tabParam && ['all', 'guide', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
+      if (tabParam && ['all', 'guide', 'greeting', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
         return tabParam as TabType
       }
       return user ? 'all' : 'diary'
@@ -66,6 +71,8 @@ function MainLayoutContent({
       router.push('/dashboard')
     } else if (tab === 'guide') {
       router.push('/guide')
+    } else if (tab === 'greeting') {
+      router.push('/greeting')
     } else if (tab === 'cases') {
       router.push('/cases')
     } else {

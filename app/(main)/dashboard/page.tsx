@@ -2,8 +2,10 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { useProfile } from '@/hooks/useProfile'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import PostCard from '@/components/post/PostCard'
 import PostListItem from '@/components/post/PostListItem'
 import CopList from '@/components/cop/CopList'
@@ -506,6 +508,7 @@ function StudyContent({ showCreateButton = true, showTitle = true, showDescripti
 // 나의 활동 컴포넌트
 function ActivityContent() {
   const { user } = useAuth()
+  const { profile } = useProfile()
   const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -671,6 +674,10 @@ function ActivityContent() {
   const posts = activities.filter((a: any) => a.type === 'post')
   const comments = activities.filter((a: any) => a.type === 'comment')
 
+  const displayName = profile?.nickname || profile?.name || user?.email?.split('@')[0] || '익명'
+  const avatarUrl = profile?.avatar_url
+  const initial = displayName.charAt(0).toUpperCase()
+
   return (
     <div>
       {/* 페이지 제목 및 설명 */}
@@ -679,6 +686,49 @@ function ActivityContent() {
         <p className="text-gray-600 text-base">
           내가 작성한 게시글과 댓글을 확인할 수 있습니다.
         </p>
+      </div>
+
+      {/* 프로필 정보 카드 */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex items-center gap-6">
+          {/* 프로필 사진 */}
+          {avatarUrl ? (
+            <div className="relative w-20 h-20 rounded-full overflow-hidden flex-shrink-0">
+              <Image
+                src={avatarUrl}
+                alt={displayName}
+                fill
+                className="object-cover"
+                sizes="80px"
+              />
+            </div>
+          ) : (
+            <div className="w-20 h-20 rounded-full bg-ok-primary flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+              {initial}
+            </div>
+          )}
+          
+          {/* 프로필 정보 */}
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">{displayName}</h3>
+            {profile && (profile.company || profile.team || profile.position) && (
+              <div className="text-sm text-gray-600 mb-2">
+                {[profile.company, profile.team, profile.position].filter(Boolean).join(' ')}
+              </div>
+            )}
+            {user?.email && (
+              <div className="text-sm text-gray-500">{user.email}</div>
+            )}
+          </div>
+          
+          {/* 프로필 수정 버튼 */}
+          <Link
+            href="/profile"
+            className="px-4 py-2 bg-ok-primary text-white rounded-lg text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+          >
+            프로필 수정
+          </Link>
+        </div>
       </div>
 
       {/* 좌우 분할 레이아웃 */}

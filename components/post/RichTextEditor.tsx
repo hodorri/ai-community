@@ -7,6 +7,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/useAuth'
 
 interface RichTextEditorProps {
   content: string
@@ -21,6 +22,7 @@ export default function RichTextEditor({
   placeholder = '내용을 입력하세요',
   minHeight = '200px',
 }: RichTextEditorProps) {
+  const { user } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
@@ -35,6 +37,67 @@ export default function RichTextEditor({
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  const supabase = createClient()
+
+  // 이미지 파일 업로드 함수 (공통)
+  const handleImageUploadFromFile = async (file: File) => {
+    if (!user) {
+      alert('로그인이 필요합니다.')
+      return
+    }
+
+    setUploading(true)
+    setError(null)
+
+    try {
+      // 파일 크기 제한 (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error('파일 크기는 10MB 이하여야 합니다.')
+      }
+
+      // 파일 타입 검증
+      if (!file.type.startsWith('image/')) {
+        throw new Error('이미지 파일만 업로드 가능합니다.')
+      }
+
+      const fileExt = file.name.split('.').pop() || 'png'
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`
+
+      // 클라이언트에서 직접 Supabase Storage에 업로드
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: false,
+        })
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError)
+        throw new Error(uploadError.message || '업로드 실패')
+      }
+
+      // 공개 URL 가져오기
+      const { data: { publicUrl } } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(uploadData.path)
+
+      if (!publicUrl) {
+        throw new Error('이미지 URL을 받지 못했습니다.')
+      }
+
+      // 에디터에 이미지 삽입
+      if (editor) {
+        editor.chain().focus().setImage({ src: publicUrl }).run()
+      }
+    } catch (error) {
+      console.error('이미지 업로드 오류:', error)
+      const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
+      alert(`이미지 업로드에 실패했습니다: ${errorMessage}`)
+      setError(errorMessage)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   // 이모지 피커 외부 클릭 시 닫기
   useEffect(() => {
@@ -125,6 +188,29 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class: 'ProseMirror focus:outline-none',
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items
+        if (!items) return false
+
+        // 클립보드에서 이미지 찾기
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i]
+          if (item.type.indexOf('image') !== -1) {
+            event.preventDefault()
+            
+            const file = item.getAsFile()
+            if (!file || !user) {
+              alert('로그인이 필요합니다.')
+              return true
+            }
+
+            // 이미지 업로드
+            handleImageUploadFromFile(file)
+            return true
+          }
+        }
+        return false
       },
     },
   })
@@ -642,66 +728,10 @@ export default function RichTextEditor({
             const files = e.target.files
             if (!files || files.length === 0 || !editor) return
 
-            setUploading(true)
-
-            const supabase = createClient()
-
-            // 현재 사용자 확인
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-              alert('로그인이 필요합니다.')
-              setUploading(false)
-              return
-            }
-
             for (const file of Array.from(files)) {
-              if (!file.type.startsWith('image/')) {
-                alert(`${file.name}은(는) 이미지 파일이 아닙니다.`)
-                continue
-              }
-
-              // 파일 크기 제한 (5MB)
-              if (file.size > 5 * 1024 * 1024) {
-                alert(`${file.name}은(는) 5MB 이하여야 합니다.`)
-                continue
-              }
-
-              try {
-                const fileExt = file.name.split('.').pop()
-                const fileName = `${user.id}/${Date.now()}.${fileExt}`
-
-                // 클라이언트에서 직접 Supabase Storage에 업로드
-                const { data: uploadData, error: uploadError } = await supabase.storage
-                  .from('post-images')
-                  .upload(fileName, file, {
-                    contentType: file.type,
-                    upsert: false,
-                  })
-
-                if (uploadError) {
-                  console.error('Storage upload error:', uploadError)
-                  throw new Error(uploadError.message || '업로드 실패')
-                }
-
-                // 공개 URL 가져오기
-                const { data: { publicUrl } } = supabase.storage
-                  .from('post-images')
-                  .getPublicUrl(uploadData.path)
-
-                if (!publicUrl) {
-                  throw new Error('이미지 URL을 받지 못했습니다.')
-                }
-
-                // 에디터에 이미지 삽입
-                editor.chain().focus().setImage({ src: publicUrl }).run()
-              } catch (error) {
-                console.error('이미지 업로드 오류:', error)
-                const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
-                alert(`${file.name} 업로드에 실패했습니다: ${errorMessage}`)
-              }
+              await handleImageUploadFromFile(file)
             }
 
-            setUploading(false)
             // 파일 입력 초기화
             if (fileInputRef.current) {
               fileInputRef.current.value = ''

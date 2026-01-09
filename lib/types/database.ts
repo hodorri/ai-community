@@ -148,3 +148,49 @@ export type CrawledNews = {
   created_at: string
   updated_at: string
 }
+
+export type Greeting = {
+  id: string
+  user_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name?: string
+    nickname?: string
+    avatar_url?: string | null
+    company?: string | null
+    team?: string | null
+    position?: string | null
+  }
+  likes_count?: number
+  comments_count?: number
+}
+
+export type GreetingLike = {
+  id: string
+  greeting_id: string
+  user_id: string
+  created_at: string
+}
+
+export type GreetingComment = {
+  id: string
+  greeting_id: string
+  user_id: string
+  content: string
+  parent_id?: string | null
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name?: string
+    nickname?: string
+    avatar_url?: string | null
+    company?: string | null
+    team?: string | null
+    position?: string | null
+  }
+  replies?: GreetingComment[]
+}

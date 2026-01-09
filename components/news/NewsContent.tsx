@@ -196,13 +196,13 @@ export default function NewsContent({ showAll = true }: NewsContentProps = {}) {
     )
   }
 
-      // 고정 게시물과 일반 게시물 분리
-      // 고정 게시물: is_pinned가 true인 것만 (최대 3개)
-      const pinnedNews = news.filter(item => item.is_pinned === true).slice(0, 3)
-      // 일반 게시물: is_pinned가 false이거나 null/undefined인 모든 게시물 (크롤링된 글 + 개별 작성 글 모두 포함)
-      const regularNews = news.filter(item => item.is_pinned !== true)
+  // 고정 게시물과 일반 게시물 분리
+  // 고정 게시물: is_pinned가 true인 것만 (최대 3개)
+  const pinnedNews = news.filter(item => item.is_pinned === true).slice(0, 3)
+  // 일반 게시물: is_pinned가 false이거나 null/undefined인 모든 게시물 (크롤링된 글 + 개별 작성 글 모두 포함)
+  const regularNews = news.filter(item => item.is_pinned !== true)
 
-      return (
+  return (
         <div>
           {/* 페이지 제목 및 설명 */}
           {showAll && (

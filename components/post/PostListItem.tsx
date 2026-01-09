@@ -15,6 +15,7 @@ interface PostListItemProps {
     }
   }
   linkPrefix?: string // 링크 접두사 (기본값: '/post')
+  noLink?: boolean // 링크 비활성화 (기본값: false)
 }
 
 // HTML 태그 제거 및 텍스트 추출 함수
@@ -57,7 +58,7 @@ function getTimeAgo(dateString: string): string {
   return `${diffYears}년 전`
 }
 
-export default function PostListItem({ post, linkPrefix = '/post' }: PostListItemProps) {
+export default function PostListItem({ post, linkPrefix = '/post', noLink = false }: PostListItemProps) {
   const previewImage = post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : null
   const authorAvatar = post.user?.avatar_url
   const authorName = post.user?.nickname || post.user?.name || post.user?.email?.split('@')[0] || '익명'
@@ -80,12 +81,8 @@ export default function PostListItem({ post, linkPrefix = '/post' }: PostListIte
   // AI 활용사례(/cases)에서는 아바타 이미지 표시하지 않음
   const showAvatar = linkPrefix !== '/cases'
 
-  return (
-    <Link 
-      href={`${linkPrefix}/${post.id}`}
-      className="block"
-    >
-      <article className="flex items-start gap-4 py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer">
+  const articleContent = (
+    <article className={`flex items-start gap-4 py-4 px-4 border-b border-gray-200 ${noLink ? '' : 'hover:bg-gray-50 transition-colors cursor-pointer'}`}>
         {/* 썸네일 - 게시글 이미지가 있으면 게시글 이미지, 없으면 작성자 프로필 사진 (AI 활용사례 제외) */}
         {showAvatar && (
           <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
@@ -194,6 +191,20 @@ export default function PostListItem({ post, linkPrefix = '/post' }: PostListIte
           </div>
         </div>
       </article>
+  )
+
+  // 링크가 비활성화된 경우 article만 반환
+  if (noLink) {
+    return articleContent
+  }
+
+  // 링크 활성화된 경우 Link로 감싸서 반환
+  return (
+    <Link 
+      href={`${linkPrefix}/${post.id}`}
+      className="block"
+    >
+      {articleContent}
     </Link>
   )
 }
