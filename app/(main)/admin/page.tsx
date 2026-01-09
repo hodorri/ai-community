@@ -644,20 +644,48 @@ export default function AdminPage() {
 
     try {
       setEditingUsers(true)
+      console.log('[사용자 수정] 시작 - 사용자 ID:', userId)
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      // API 라우트를 통해 수정 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/update-user', {
+        method: 'PATCH',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({
+          userId,
           name: editFormData.name || null,
           employee_number: editFormData.employee_number || null,
           company: editFormData.company || null,
           team: editFormData.team || null,
           position: editFormData.position || null,
-        })
-        .eq('id', userId)
+        }),
+      })
 
-      if (error) {
-        throw new Error(error.message)
+      const result = await response.json()
+      console.log('[사용자 수정] 응답:', { status: response.status, result })
+
+      if (!response.ok) {
+        console.error('[사용자 수정] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`수정 실패: ${result.error}\n${result.details || ''}`)
+        return
       }
 
       alert('사용자 정보가 수정되었습니다.')
@@ -666,7 +694,7 @@ export default function AdminPage() {
       setSelectedUsers(new Set())
       fetchAllUsers()
     } catch (error: any) {
-      console.error('수정 오류:', error)
+      console.error('[사용자 수정] 예외 발생:', error)
       alert(`수정 실패: ${error?.message || '알 수 없는 오류'}`)
     } finally {
       setEditingUsers(false)
@@ -685,20 +713,48 @@ export default function AdminPage() {
 
     try {
       setEditingCops(true)
+      console.log('[CoP 수정] 시작 - CoP ID:', copId)
 
-      const { error } = await supabase
-        .from('cops')
-        .update({
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      // API 라우트를 통해 수정 (서버 사이드에서 처리)
+      const response = await fetch('/api/admin/update-cop', {
+        method: 'PATCH',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({
+          copId,
           name: editFormData.name || '',
           description: editFormData.description || null,
           max_members: editFormData.max_members || 0,
           activity_plan: editFormData.activity_plan || null,
           ai_tools: editFormData.ai_tools || null,
-        })
-        .eq('id', copId)
+        }),
+      })
 
-      if (error) {
-        throw new Error(error.message)
+      const result = await response.json()
+      console.log('[CoP 수정] 응답:', { status: response.status, result })
+
+      if (!response.ok) {
+        console.error('[CoP 수정] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`수정 실패: ${result.error}\n${result.details || ''}`)
+        return
       }
 
       alert('CoP 정보가 수정되었습니다.')
@@ -707,7 +763,7 @@ export default function AdminPage() {
       setSelectedCops(new Set())
       fetchAllCops()
     } catch (error: any) {
-      console.error('수정 오류:', error)
+      console.error('[CoP 수정] 예외 발생:', error)
       alert(`수정 실패: ${error?.message || '알 수 없는 오류'}`)
     } finally {
       setEditingCops(false)
