@@ -30,19 +30,51 @@ export async function POST(request: NextRequest) {
     }
 
     if (authError) {
-      console.error('[승인] 인증 오류:', authError)
-      return NextResponse.json({ error: '인증 오류: ' + authError.message }, { status: 401 })
+      console.error('[승인] 인증 오류 상세:', {
+        message: authError.message,
+        status: authError.status,
+        name: authError.name
+      })
+      return NextResponse.json({ 
+        error: '인증 오류: ' + authError.message,
+        details: 'Auth session missing. Please log in again.'
+      }, { status: 401 })
     }
 
     if (!user) {
       console.error('[승인] 사용자 정보 없음')
-      return NextResponse.json({ error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.' }, { status: 401 })
+      return NextResponse.json({ 
+        error: '인증이 필요합니다. 로그인 후 다시 시도해주세요.',
+        details: 'User not found in session'
+      }, { status: 401 })
     }
 
-    console.log('[승인] 현재 사용자:', user.email)
+    console.log('[승인] 현재 사용자:', {
+      id: user.id,
+      email: user.email,
+      adminEmail: ADMIN_EMAIL,
+      isAdmin: user.email === ADMIN_EMAIL
+    })
+
+    // 관리자 권한 확인 - 이메일 비교
+    if (!ADMIN_EMAIL) {
+      console.error('[승인] ADMIN_EMAIL이 설정되지 않음')
+      return NextResponse.json({ 
+        error: '관리자 설정이 필요합니다.',
+        details: 'NEXT_PUBLIC_ADMIN_EMAIL environment variable is not set'
+      }, { status: 500 })
+    }
 
     if (user.email !== ADMIN_EMAIL) {
-      return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 })
+      console.error('[승인] 관리자 권한 없음:', {
+        userEmail: user.email,
+        adminEmail: ADMIN_EMAIL,
+        match: user.email === ADMIN_EMAIL
+      })
+      return NextResponse.json({ 
+        error: '관리자 권한이 필요합니다.',
+        details: `User email (${user.email}) does not match admin email (${ADMIN_EMAIL})`
+      }, { status: 403 })
     }
 
     const body = await request.json()
@@ -56,45 +88,99 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '유효하지 않은 상태입니다.' }, { status: 400 })
     }
 
+    // 먼저 대상 사용자가 존재하는지 확인
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id, email, status')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('[승인] 프로필 조회 오류:', checkError)
+      return NextResponse.json({ 
+        error: '사용자를 찾을 수 없습니다.',
+        details: checkError
+      }, { status: 404 })
+    }
+
+    if (!existingProfile) {
+      return NextResponse.json({ 
+        error: '대상 사용자를 찾을 수 없습니다.',
+        details: `User with ID ${userId} not found`
+      }, { status: 404 })
+    }
+
+    console.log('[승인] 대상 사용자:', {
+      id: existingProfile.id,
+      email: existingProfile.email,
+      currentStatus: existingProfile.status,
+      newStatus: status
+    })
+
     // SECURITY DEFINER 함수를 사용하여 프로필 업데이트 (RLS 우회)
-    const { data, error } = await supabase.rpc('approve_user_profile', {
+    const { data: updatedProfile, error: rpcError } = await supabase.rpc('approve_user_profile', {
       target_user_id: userId,
       new_status: status
     })
 
-    if (error) {
-      console.error('프로필 업데이트 오류:', error)
-      console.error('에러 상세:', JSON.stringify(error, null, 2))
-      console.error('현재 사용자 ID:', user.id)
-      console.error('대상 사용자 ID:', userId)
+    if (rpcError) {
+      console.error('[승인] RPC 함수 실행 오류:', rpcError)
+      console.error('[승인] 오류 상세:', JSON.stringify(rpcError, null, 2))
       
-      // 함수가 없거나 오류가 발생한 경우, 직접 업데이트 시도
-      // (서버 사이드에서는 service role key가 있어야 함)
-      const { data: directData, error: directError } = await supabase
+      // 함수가 없거나 오류가 발생한 경우, 직접 업데이트 시도 (fallback)
+      console.log('[승인] RPC 실패, 직접 업데이트 시도...')
+      const { data: updateResult, error: updateError } = await supabase
         .from('profiles')
-        .update({ status })
+        .update({ 
+          status,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', userId)
         .select()
-        .single()
 
-      if (directError) {
+      if (updateError) {
+        console.error('[승인] 직접 업데이트도 실패:', updateError)
         return NextResponse.json({ 
-          error: directError.message || '프로필 업데이트에 실패했습니다.',
-          details: directError,
-          user_id: user.id,
-          target_id: userId,
-          hint: 'approve_user_profile 함수 호출 실패 후 직접 업데이트도 실패'
+          error: updateError.message || '프로필 업데이트에 실패했습니다.',
+          details: updateError,
+          rpcError: rpcError
         }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, profile: directData })
+      if (!updateResult || updateResult.length === 0) {
+        return NextResponse.json({ 
+          error: '프로필 업데이트에 실패했습니다.',
+          details: 'Update returned no rows',
+          rpcError: rpcError
+        }, { status: 500 })
+      }
+
+      const fallbackProfile = updateResult[0]
+      console.log('[승인] 직접 업데이트 성공 (fallback):', fallbackProfile.email)
+      
+      return NextResponse.json({ 
+        success: true, 
+        profile: fallbackProfile 
+      })
     }
 
-    if (!data) {
-      return NextResponse.json({ error: '업데이트된 프로필을 찾을 수 없습니다.' }, { status: 500 })
+    if (!updatedProfile) {
+      return NextResponse.json({ 
+        error: '업데이트된 프로필을 찾을 수 없습니다.',
+        details: 'RPC function returned null'
+      }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, profile: data })
+    console.log('[승인] RPC 함수로 업데이트 성공:', {
+      email: updatedProfile.email,
+      oldStatus: existingProfile.status,
+      newStatus: updatedProfile.status
+    })
+
+    return NextResponse.json({ 
+      success: true, 
+      profile: updatedProfile 
+    })
   } catch (error) {
     console.error('Error:', error)
     return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })

@@ -180,21 +180,45 @@ export default function AdminPage() {
 
   const handleApprove = async (userId: string) => {
     try {
+      console.log('[승인] 시작 - 사용자 ID:', userId)
+      console.log('[승인] 현재 로그인 사용자:', user?.email)
+      console.log('[승인] 관리자 이메일:', ADMIN_EMAIL)
+      
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+        console.log('[승인] 토큰 포함됨')
+      } else {
+        console.warn('[승인] 토큰 없음 - 쿠키만 사용')
+      }
+      
       // API 라우트를 통해 승인 (서버 사이드에서 처리)
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include', // 쿠키 포함
         body: JSON.stringify({ userId, status: 'approved' }),
       })
 
       const result = await response.json()
+      console.log('[승인] 응답:', { status: response.status, result })
 
       if (!response.ok) {
-        console.error('승인 오류:', result)
-        alert('승인 실패: ' + (result.error || '알 수 없는 오류'))
+        console.error('[승인] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`승인 실패: ${result.error}\n${result.details || ''}`)
         return
       }
 
@@ -202,7 +226,7 @@ export default function AdminPage() {
       // 목록 새로고침
       fetchAllUsers()
     } catch (error: any) {
-      console.error('Error approving user:', error)
+      console.error('[승인] 예외 발생:', error)
       alert('승인 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
@@ -211,21 +235,41 @@ export default function AdminPage() {
     if (!confirm('정말 거부하시겠습니까?')) return
 
     try {
+      console.log('[거부] 시작 - 사용자 ID:', userId)
+      console.log('[거부] 현재 로그인 사용자:', user?.email)
+      
+      // 세션 토큰 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+      
       // API 라우트를 통해 거부 (서버 사이드에서 처리)
       const response = await fetch('/api/admin/approve', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include', // 쿠키 포함
         body: JSON.stringify({ userId, status: 'rejected' }),
       })
 
       const result = await response.json()
+      console.log('[거부] 응답:', { status: response.status, result })
 
       if (!response.ok) {
-        console.error('거부 오류:', result)
-        alert('거부 실패: ' + (result.error || '알 수 없는 오류'))
+        console.error('[거부] 오류 상세:', {
+          status: response.status,
+          error: result.error,
+          details: result.details
+        })
+        alert(`거부 실패: ${result.error}\n${result.details || ''}`)
         return
       }
 
@@ -233,7 +277,7 @@ export default function AdminPage() {
       // 목록 새로고침
       fetchAllUsers()
     } catch (error: any) {
-      console.error('Error rejecting user:', error)
+      console.error('[거부] 예외 발생:', error)
       alert('거부 중 오류가 발생했습니다: ' + (error.message || '알 수 없는 오류'))
     }
   }
