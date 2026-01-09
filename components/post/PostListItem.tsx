@@ -22,6 +22,7 @@ interface PostListItemProps {
   }
   linkPrefix?: string // 링크 접두사 (기본값: '/post')
   noLink?: boolean // 링크 비활성화 (기본값: false)
+  returnPage?: number // 돌아갈 페이지 번호 (Cases 페이지에서 사용)
 }
 
 // HTML 태그 제거 및 텍스트 추출 함수
@@ -64,7 +65,7 @@ function getTimeAgo(dateString: string): string {
   return `${diffYears}년 전`
 }
 
-export default function PostListItem({ post, linkPrefix = '/post', noLink = false }: PostListItemProps) {
+export default function PostListItem({ post, linkPrefix = '/post', noLink = false, returnPage }: PostListItemProps) {
   const previewImage = post.image_urls && post.image_urls.length > 0 ? post.image_urls[0] : null
   const authorAvatar = post.user?.avatar_url
   const authorName = post.user?.nickname || post.user?.name || post.user?.email?.split('@')[0] || '익명'
@@ -218,9 +219,14 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
   }
 
   // 링크 활성화된 경우 Link로 감싸서 반환
+  // Cases 페이지에서 온 경우 returnPage를 쿼리 파라미터로 추가
+  const href = returnPage !== undefined 
+    ? `${linkPrefix}/${post.id}?page=${returnPage}`
+    : `${linkPrefix}/${post.id}`
+  
   return (
     <Link 
-      href={`${linkPrefix}/${post.id}`}
+      href={href}
       className="block"
     >
       {articleContent}

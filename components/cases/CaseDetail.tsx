@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
 
@@ -47,6 +47,38 @@ function isImageUrl(url?: string | null): boolean {
   )
 }
 
+function isDownloadableFile(url?: string | null): boolean {
+  if (!url) return false
+  const lowered = url.toLowerCase()
+  // JSON, Python, Excel, PDF 등 다운로드가 필요한 파일 확장자
+  return (
+    lowered.endsWith('.json') ||
+    lowered.endsWith('.py') ||
+    lowered.endsWith('.xlsx') ||
+    lowered.endsWith('.xls') ||
+    lowered.endsWith('.pdf') ||
+    lowered.endsWith('.doc') ||
+    lowered.endsWith('.docx') ||
+    lowered.endsWith('.zip') ||
+    lowered.endsWith('.rar') ||
+    lowered.endsWith('.txt') ||
+    lowered.endsWith('.csv')
+  )
+}
+
+function getDownloadUrl(url: string): string {
+  // Supabase Storage URL인 경우 다운로드 파라미터 추가
+  if (url.includes('supabase.co/storage/v1/object/public/')) {
+    // 이미 다운로드 파라미터가 있으면 그대로 반환
+    if (url.includes('?download=')) {
+      return url
+    }
+    // 다운로드 파라미터 추가
+    return `${url}?download=true`
+  }
+  return url
+}
+
 export default function CaseDetail({ case: caseData, currentUserId }: CaseDetailProps) {
   const [isPinned, setIsPinned] = useState(caseData.is_pinned || false)
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
@@ -57,8 +89,12 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
   const [loadingEngineer, setLoadingEngineer] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const isAdmin = currentUserEmail === ADMIN_EMAIL
+  
+  // URL에서 페이지 번호 가져오기
+  const returnPage = searchParams.get('page')
 
   useEffect(() => {
     async function fetchCurrentUser() {
@@ -252,7 +288,14 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
       {/* 헤더 - 목록으로 돌아가기, 카테고리, 고정 버튼 및 메뉴 */}
       <div className="relative flex items-center justify-between mb-6">
         <button
-          onClick={() => router.push('/cases')}
+          onClick={() => {
+            // 페이지 번호가 있으면 해당 페이지로, 없으면 이전 페이지로
+            if (returnPage) {
+              router.push(`/cases?page=${returnPage}`)
+            } else {
+              router.back()
+            }
+          }}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

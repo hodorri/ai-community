@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import PostListItem from '@/components/post/PostListItem'
 import Link from 'next/link'
 
@@ -12,6 +12,7 @@ const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 export default function CasesPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [posts, setPosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -24,12 +25,29 @@ export default function CasesPage() {
   const [deleteMode, setDeleteMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage] = useState(() => {
+    // URL에서 페이지 번호 읽기
+    const page = searchParams.get('page')
+    return page ? parseInt(page, 10) : 1
+  })
   const [totalCount, setTotalCount] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isAdmin = user?.email === ADMIN_EMAIL
   const ITEMS_PER_PAGE = 20
+  
+  // URL 쿼리 파라미터에서 페이지 번호 동기화
+  useEffect(() => {
+    const page = searchParams.get('page')
+    if (page) {
+      const pageNum = parseInt(page, 10)
+      if (!isNaN(pageNum) && pageNum !== currentPage) {
+        setCurrentPage(pageNum)
+      }
+    } else if (currentPage !== 1) {
+      setCurrentPage(1)
+    }
+  }, [searchParams])
 
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -352,8 +370,10 @@ export default function CasesPage() {
         if (debouncedSearchQuery) {
           const searchPattern = `%${debouncedSearchQuery}%`
           
-          // 각 필드별로 검색
-          const [titleResult, contentResult, toolsResult, backgroundResult] = await Promise.all([
+          console.log('[AI 활용사례] 검색 시작 - 검색어:', debouncedSearchQuery, '패턴:', searchPattern)
+          
+          // 각 필드별로 검색 (작성자 이름 포함)
+          const [titleResult, contentResult, toolsResult, backgroundResult, authorResult] = await Promise.all([
             supabase
               .from('ai_cases')
               .select('*', { count: 'exact' })
@@ -370,7 +390,19 @@ export default function CasesPage() {
               .from('ai_cases')
               .select('*', { count: 'exact' })
               .ilike('development_background', searchPattern),
+            supabase
+              .from('ai_cases')
+              .select('*', { count: 'exact' })
+              .ilike('author_name', searchPattern),
           ])
+          
+          console.log('[AI 활용사례] 검색 결과:', {
+            title: titleResult.data?.length || 0,
+            content: contentResult.data?.length || 0,
+            tools: toolsResult.data?.length || 0,
+            background: backgroundResult.data?.length || 0,
+            author: authorResult.data?.length || 0,
+          })
           
           // 결과 병합 및 중복 제거
           const allResults = [
@@ -378,7 +410,10 @@ export default function CasesPage() {
             ...(contentResult.data || []),
             ...(toolsResult.data || []),
             ...(backgroundResult.data || []),
+            ...(authorResult.data || []),
           ]
+          
+          console.log('[AI 활용사례] 병합 전 결과 수:', allResults.length)
           
           const uniqueMap = new Map()
           allResults.forEach((item: any) => {
@@ -399,8 +434,12 @@ export default function CasesPage() {
               return new Date(bDate).getTime() - new Date(aDate).getTime()
             })
           
+          console.log('[AI 활용사례] 중복 제거 후 결과 수:', uniqueResults.length)
+          
           totalCount = uniqueResults.length
           postsData = uniqueResults.slice(from, to + 1)
+          
+          console.log('[AI 활용사례] 페이지네이션 후 결과 수:', postsData.length)
           
           // 에러 확인
           if (titleResult.error) {
@@ -414,6 +453,9 @@ export default function CasesPage() {
           }
           if (backgroundResult.error) {
             console.error('[AI 활용사례] 개발 배경 검색 오류:', backgroundResult.error)
+          }
+          if (authorResult.error) {
+            console.error('[AI 활용사례] 작성자 검색 오류:', authorResult.error)
           }
         } else {
           // 검색어가 없으면 일반 조회
@@ -528,30 +570,19 @@ export default function CasesPage() {
     }
   }, [authLoading, debouncedSearchQuery, currentPage])
   
-  // 검색어 변경 시 디바운스 처리 및 첫 페이지로 리셋 (Navbar와 동일한 방식)
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
+  // 검색 실행 함수
+  const handleSearch = () => {
+    setDebouncedSearchQuery(searchQuery.trim())
+    setCurrentPage(1) // 검색 시 첫 페이지로 리셋
+  }
+
+  // 엔터 키 입력 시 검색 실행
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSearch()
     }
-    
-    // 검색어가 변경되면 첫 페이지로 리셋
-    setCurrentPage(1)
-    
-    // 디바운스: 300ms 후에 debouncedSearchQuery 업데이트
-    if (searchQuery.trim()) {
-      searchTimeoutRef.current = setTimeout(() => {
-        setDebouncedSearchQuery(searchQuery.trim())
-      }, 300) // 300ms 디바운스
-    } else {
-      setDebouncedSearchQuery('')
-    }
-    
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [searchQuery])
+  }
 
   if (authLoading) {
     return (
@@ -625,12 +656,24 @@ export default function CasesPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="검색어를 입력하세요..."
+                onKeyDown={handleSearchKeyDown}
+                placeholder="검색어를 입력하고 엔터를 누르세요..."
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-ok-primary focus:ring-1 focus:ring-ok-primary text-sm"
               />
+              <button
+                onClick={handleSearch}
+                className="px-4 py-2 bg-ok-primary text-white rounded-lg hover:bg-ok-dark transition-colors text-sm font-semibold whitespace-nowrap"
+                title="검색"
+              >
+                검색
+              </button>
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('')
+                    setDebouncedSearchQuery('')
+                    setCurrentPage(1)
+                  }}
                   className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-md transition-colors"
                   title="검색어 지우기"
                 >
@@ -817,7 +860,7 @@ export default function CasesPage() {
                     e.stopPropagation()
                   }
                 }}>
-                  <PostListItem post={post} linkPrefix="/cases" />
+                  <PostListItem post={post} linkPrefix="/cases" returnPage={currentPage} />
                 </div>
               </div>
             ))}
@@ -828,7 +871,11 @@ export default function CasesPage() {
         {totalCount > ITEMS_PER_PAGE && (
           <div className="mt-8 flex items-center justify-center gap-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={() => {
+                const newPage = Math.max(1, currentPage - 1)
+                setCurrentPage(newPage)
+                router.push(`/cases?page=${newPage}`)
+              }}
               disabled={currentPage === 1}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentPage === 1
