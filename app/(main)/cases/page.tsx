@@ -22,8 +22,14 @@ export default function CasesPage() {
   const [selectedPosts, setSelectedPosts] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   const [deleteMode, setDeleteMode] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isAdmin = user?.email === ADMIN_EMAIL
+  const ITEMS_PER_PAGE = 20
 
   const handleExcelUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -333,25 +339,110 @@ export default function CasesPage() {
         const { createClient } = await import('@/lib/supabase/client')
         const supabase = createClient()
         
-        console.log('[AI 활용사례] 게시글 조회 시작')
+        console.log('[AI 활용사례] 게시글 조회 시작 - 검색어:', debouncedSearchQuery, '페이지:', currentPage)
         
-        // AI 활용사례 게시글 조회 (고정 게시글 먼저, 그 다음 최신순)
-        const { data: postsData, error: postsError } = await supabase
-          .from('ai_cases')
-          .select('*')
-          .order('is_pinned', { ascending: false })
-          .order('published_at', { ascending: false })
-          .order('created_at', { ascending: false })
-          .limit(20)
+        // 페이지네이션 적용
+        const from = (currentPage - 1) * ITEMS_PER_PAGE
+        const to = from + ITEMS_PER_PAGE - 1
         
-        if (postsError) {
-          console.error('[AI 활용사례] 게시글 조회 오류:', postsError)
-          throw new Error(postsError.message || '게시글을 불러오는데 실패했습니다.')
+        // 검색어가 있으면 각 필드를 개별적으로 검색하고 병합 (검색 API와 동일한 방식)
+        let postsData: any[] = []
+        let totalCount = 0
+        
+        if (debouncedSearchQuery) {
+          const searchPattern = `%${debouncedSearchQuery}%`
+          
+          // 각 필드별로 검색
+          const [titleResult, contentResult, toolsResult, backgroundResult] = await Promise.all([
+            supabase
+              .from('ai_cases')
+              .select('*', { count: 'exact' })
+              .ilike('title', searchPattern),
+            supabase
+              .from('ai_cases')
+              .select('*', { count: 'exact' })
+              .ilike('content', searchPattern),
+            supabase
+              .from('ai_cases')
+              .select('*', { count: 'exact' })
+              .ilike('ai_tools', searchPattern),
+            supabase
+              .from('ai_cases')
+              .select('*', { count: 'exact' })
+              .ilike('development_background', searchPattern),
+          ])
+          
+          // 결과 병합 및 중복 제거
+          const allResults = [
+            ...(titleResult.data || []),
+            ...(contentResult.data || []),
+            ...(toolsResult.data || []),
+            ...(backgroundResult.data || []),
+          ]
+          
+          const uniqueMap = new Map()
+          allResults.forEach((item: any) => {
+            if (!uniqueMap.has(item.id)) {
+              uniqueMap.set(item.id, item)
+            }
+          })
+          
+          const uniqueResults = Array.from(uniqueMap.values())
+            .sort((a: any, b: any) => {
+              // 고정 게시글 먼저
+              if (a.is_pinned !== b.is_pinned) {
+                return a.is_pinned ? -1 : 1
+              }
+              // 그 다음 published_at
+              const aDate = a.published_at || a.created_at
+              const bDate = b.published_at || b.created_at
+              return new Date(bDate).getTime() - new Date(aDate).getTime()
+            })
+          
+          totalCount = uniqueResults.length
+          postsData = uniqueResults.slice(from, to + 1)
+          
+          // 에러 확인
+          if (titleResult.error) {
+            console.error('[AI 활용사례] 제목 검색 오류:', titleResult.error)
+          }
+          if (contentResult.error) {
+            console.error('[AI 활용사례] 내용 검색 오류:', contentResult.error)
+          }
+          if (toolsResult.error) {
+            console.error('[AI 활용사례] AI 도구 검색 오류:', toolsResult.error)
+          }
+          if (backgroundResult.error) {
+            console.error('[AI 활용사례] 개발 배경 검색 오류:', backgroundResult.error)
+          }
+        } else {
+          // 검색어가 없으면 일반 조회
+          const { data, error, count } = await supabase
+            .from('ai_cases')
+            .select('*', { count: 'exact' })
+            .order('is_pinned', { ascending: false })
+            .order('published_at', { ascending: false })
+            .order('created_at', { ascending: false })
+            .range(from, to)
+          
+          if (error) {
+            console.error('[AI 활용사례] 게시글 조회 오류:', error)
+            throw new Error(error.message || '게시글을 불러오는데 실패했습니다.')
+          }
+          
+          postsData = data || []
+          totalCount = count || 0
         }
         
-        console.log('[AI 활용사례] 조회된 게시글 수:', postsData?.length || 0)
+        const postsError = null // 에러는 위에서 처리됨
         
-        if (!postsData || postsData.length === 0) {
+        setTotalCount(totalCount)
+        
+        const postsDataToUse = postsData || []
+        
+        console.log('[AI 활용사례] 조회된 게시글 수:', postsDataToUse?.length || 0)
+        
+        if (!postsDataToUse || postsDataToUse.length === 0) {
           setPosts([])
           setError(null)
           setLoading(false)
@@ -359,7 +450,7 @@ export default function CasesPage() {
         }
         
         // first_engineer 테이블에서 데이터 가져오기
-        const employeeNumbers = postsData
+        const employeeNumbers = postsDataToUse
           .map((post: any) => post.employee_number)
           .filter((num: string | null) => num !== null && num !== undefined)
         
@@ -379,7 +470,7 @@ export default function CasesPage() {
         
         // AI 활용사례는 외부에서 가져온 데이터이므로 프로필 정보는 author_name, author_email 사용
         // attached_file_url이 없으면 source_url을 사용
-        const postsWithCounts = postsData.map((post: any) => {
+        const postsWithCounts = postsDataToUse.map((post: any) => {
           const engineerData = post.employee_number ? engineerDataMap.get(post.employee_number) : null
           
           return {
@@ -435,7 +526,32 @@ export default function CasesPage() {
       window.removeEventListener('post-created', handlePostCreated)
       window.removeEventListener('cases-updated', handleCasesUpdated)
     }
-  }, [authLoading])
+  }, [authLoading, debouncedSearchQuery, currentPage])
+  
+  // 검색어 변경 시 디바운스 처리 및 첫 페이지로 리셋 (Navbar와 동일한 방식)
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+    
+    // 검색어가 변경되면 첫 페이지로 리셋
+    setCurrentPage(1)
+    
+    // 디바운스: 300ms 후에 debouncedSearchQuery 업데이트
+    if (searchQuery.trim()) {
+      searchTimeoutRef.current = setTimeout(() => {
+        setDebouncedSearchQuery(searchQuery.trim())
+      }, 300) // 300ms 디바운스
+    } else {
+      setDebouncedSearchQuery('')
+    }
+    
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchQuery])
 
   if (authLoading) {
     return (
@@ -498,9 +614,33 @@ export default function CasesPage() {
         {/* 페이지 제목 및 설명 */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-3">AI 활용사례</h1>
-          <p className="text-gray-600 text-base">
+          <p className="text-gray-600 text-base mb-4">
             AI 엔지니어들의 개발 성과를 모아둔 아카이빙 공간입니다. 실제 활용 사례를 참고해 새로운 태스크를 발굴해 보세요.
           </p>
+          
+          {/* 검색 기능 */}
+          <div className="relative max-w-md">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="검색어를 입력하세요..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-ok-primary focus:ring-1 focus:ring-ok-primary text-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-md transition-colors"
+                  title="검색어 지우기"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 엑셀 업로드 및 삭제 버튼 */}
@@ -681,6 +821,73 @@ export default function CasesPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        
+        {/* 페이지네이션 */}
+        {totalCount > ITEMS_PER_PAGE && (
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+              }`}
+            >
+              이전
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.ceil(totalCount / ITEMS_PER_PAGE) }, (_, i) => i + 1)
+                .filter(page => {
+                  // 현재 페이지 주변 5개만 표시
+                  return page === 1 || 
+                         page === Math.ceil(totalCount / ITEMS_PER_PAGE) ||
+                         (page >= currentPage - 2 && page <= currentPage + 2)
+                })
+                .map((page, index, array) => {
+                  // 페이지 번호 사이에 ... 표시
+                  const showEllipsis = index > 0 && array[index] - array[index - 1] > 1
+                  return (
+                    <div key={page} className="flex items-center gap-1">
+                      {showEllipsis && (
+                        <span className="px-2 text-gray-400">...</span>
+                      )}
+                      <button
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          currentPage === page
+                            ? 'bg-ok-primary text-white'
+                            : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    </div>
+                  )
+                })}
+            </div>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(totalCount / ITEMS_PER_PAGE), prev + 1))}
+              disabled={currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                currentPage >= Math.ceil(totalCount / ITEMS_PER_PAGE)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+              }`}
+            >
+              다음
+            </button>
+          </div>
+        )}
+        
+        {/* 페이지 정보 */}
+        {totalCount > 0 && (
+          <div className="mt-4 text-center text-sm text-gray-500">
+            전체 {totalCount}개 중 {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, totalCount)}개 표시
           </div>
         )}
       </div>

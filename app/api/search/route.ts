@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
     if (!query || query.length === 0) {
       return NextResponse.json({ 
         posts: [], 
-        news: [] 
+        news: [],
+        cases: []
       })
     }
 
@@ -85,14 +86,71 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 10)
 
+    // AI Cases 검색 (제목, 내용, AI 도구, 개발 배경에서 검색)
+    const { data: casesByTitle, error: casesTitleError } = await supabase
+      .from('ai_cases')
+      .select('id, title, content, created_at, author_name, author_email, ai_tools, development_background')
+      .ilike('title', searchPattern)
+      .limit(20)
+
+    const { data: casesByContent, error: casesContentError } = await supabase
+      .from('ai_cases')
+      .select('id, title, content, created_at, author_name, author_email, ai_tools, development_background')
+      .ilike('content', searchPattern)
+      .limit(20)
+
+    const { data: casesByTools, error: casesToolsError } = await supabase
+      .from('ai_cases')
+      .select('id, title, content, created_at, author_name, author_email, ai_tools, development_background')
+      .ilike('ai_tools', searchPattern)
+      .limit(20)
+
+    const { data: casesByBackground, error: casesBackgroundError } = await supabase
+      .from('ai_cases')
+      .select('id, title, content, created_at, author_name, author_email, ai_tools, development_background')
+      .ilike('development_background', searchPattern)
+      .limit(20)
+
+    if (casesTitleError) {
+      console.error('[검색 API] Cases 제목 검색 오류:', casesTitleError)
+    }
+    if (casesContentError) {
+      console.error('[검색 API] Cases 내용 검색 오류:', casesContentError)
+    }
+    if (casesToolsError) {
+      console.error('[검색 API] Cases AI 도구 검색 오류:', casesToolsError)
+    }
+    if (casesBackgroundError) {
+      console.error('[검색 API] Cases 개발 배경 검색 오류:', casesBackgroundError)
+    }
+
+    // 중복 제거 및 병합
+    const allCases = [
+      ...(casesByTitle || []),
+      ...(casesByContent || []),
+      ...(casesByTools || []),
+      ...(casesByBackground || [])
+    ]
+    const uniqueCasesMap = new Map()
+    allCases.forEach(caseItem => {
+      if (!uniqueCasesMap.has(caseItem.id)) {
+        uniqueCasesMap.set(caseItem.id, caseItem)
+      }
+    })
+    const uniqueCases = Array.from(uniqueCasesMap.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 10)
+
     // 디버깅 정보
     console.log('[검색 API] 검색어:', query)
     console.log('[검색 API] Posts 결과:', uniquePosts.length, '개')
     console.log('[검색 API] News 결과:', uniqueNews.length, '개')
+    console.log('[검색 API] Cases 결과:', uniqueCases.length, '개')
 
     return NextResponse.json({
       posts: uniquePosts || [],
       news: uniqueNews || [],
+      cases: uniqueCases || [],
     })
   } catch (error) {
     console.error('[검색 API] 예외 발생:', error)

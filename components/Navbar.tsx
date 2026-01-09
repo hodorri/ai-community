@@ -32,6 +32,16 @@ interface SearchResult {
     author_name?: string
     source_site?: string
   }>
+  cases?: Array<{
+    id: string
+    title: string
+    content: string
+    created_at: string
+    author_name?: string
+    author_email?: string
+    ai_tools?: string
+    development_background?: string
+  }>
 }
 
 export default function Navbar() {
@@ -69,11 +79,11 @@ export default function Navbar() {
         const data = await response.json()
         setSearchResults(data)
       } else {
-        setSearchResults({ posts: [], news: [] })
+        setSearchResults({ posts: [], news: [], cases: [] })
       }
     } catch (error) {
       console.error('검색 오류:', error)
-      setSearchResults({ posts: [], news: [] })
+      setSearchResults({ posts: [], news: [], cases: [] })
     } finally {
       setIsSearching(false)
     }
@@ -263,8 +273,26 @@ export default function Navbar() {
                               </div>
                             )}
                             
+                            {/* Cases 결과 */}
+                            {searchResults.cases && searchResults.cases.length > 0 && (
+                              <div className="p-2">
+                                <div className="text-xs font-semibold text-gray-500 px-3 py-2 bg-gray-50 rounded-t">AI 활용사례</div>
+                                {searchResults.cases.map((caseItem) => (
+                                  <Link
+                                    key={caseItem.id}
+                                    href={`/cases/${caseItem.id}`}
+                                    onClick={handleResultClick}
+                                    className="block px-3 py-2.5 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+                                  >
+                                    <div className="font-medium text-sm text-gray-900 line-clamp-1 mb-1">{caseItem.title}</div>
+                                    <div className="text-xs text-gray-500 line-clamp-2">{caseItem.content.replace(/<[^>]*>/g, '').substring(0, 120)}</div>
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                            
                             {/* 결과 없음 */}
-                            {searchResults.posts.length === 0 && searchResults.news.length === 0 && (
+                            {searchResults.posts.length === 0 && searchResults.news.length === 0 && (!searchResults.cases || searchResults.cases.length === 0) && (
                               <div className="p-6 text-center text-gray-500 text-sm">
                                 <svg className="w-12 h-12 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

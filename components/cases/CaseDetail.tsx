@@ -452,13 +452,6 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
           </div>
         )}
 
-        {caseData.ai_tools && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">사용 AI 도구</h3>
-            <p className="text-gray-600">{caseData.ai_tools}</p>
-          </div>
-        )}
-
         {caseData.features && (
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">기능</h3>
@@ -473,12 +466,23 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
           </div>
         )}
 
-        {caseData.attached_file_name && (
+        {caseData.ai_tools && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">사용 AI 도구</h3>
+            <p className="text-gray-600">{caseData.ai_tools}</p>
+          </div>
+        )}
+
+        {caseData.attached_file_name && 
+         caseData.attached_file_name.trim() !== '-' && 
+         caseData.attached_file_name.trim() !== '(-)' &&
+         caseData.attached_file_name.trim() !== '- (-)' &&
+         !(caseData.attached_file_name.trim() === '-' && (!caseData.attached_file_size || caseData.attached_file_size.trim() === '-' || caseData.attached_file_size.trim() === '(-)')) && (
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">첨부파일</h3>
             <p className="text-gray-600">
               {caseData.attached_file_name}
-              {caseData.attached_file_size && ` (${caseData.attached_file_size})`}
+              {caseData.attached_file_size && caseData.attached_file_size.trim() !== '-' && caseData.attached_file_size.trim() !== '(-)' && ` (${caseData.attached_file_size})`}
             </p>
           </div>
         )}
