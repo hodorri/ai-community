@@ -82,15 +82,33 @@ export default function ProfilePage() {
 
       setAvatarUrl(publicUrl)
 
-      // 프로필에 avatar_url 업데이트
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id)
+      // 세션 토큰 가져오기
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
 
-      if (updateError) {
-        console.error('프로필 업데이트 오류:', updateError)
-        throw new Error('프로필 업데이트에 실패했습니다.')
+      // API 라우트를 통해 프로필에 avatar_url 업데이트
+      const response = await fetch('/api/profile/update', {
+        method: 'PATCH',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({
+          avatar_url: publicUrl,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '프로필 업데이트에 실패했습니다.')
       }
 
       // 프로필 업데이트 이벤트 발생
@@ -113,9 +131,25 @@ export default function ProfilePage() {
     setSuccess(false)
 
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      // 세션 토큰 가져오기
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      }
+      
+      // 토큰이 있으면 Authorization 헤더에 추가
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
+      // API 라우트를 통해 프로필 업데이트 (서버 사이드에서 처리)
+      const response = await fetch('/api/profile/update', {
+        method: 'PATCH',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({
           name: name || null,
           nickname: nickname || null,
           avatar_url: avatarUrl || null,
@@ -123,12 +157,13 @@ export default function ProfilePage() {
           company: company || null,
           team: team || null,
           position: position || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
+        }),
+      })
 
-      if (error) {
-        throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || '프로필 업데이트에 실패했습니다.')
       }
 
       setSuccess(true)
