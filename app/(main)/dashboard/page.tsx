@@ -518,6 +518,8 @@ function ActivityContent() {
       return
     }
 
+    const userId = user.id // user가 null이 아님을 보장한 후 id 저장
+
     async function fetchMyActivities() {
       try {
         const { createClient } = await import('@/lib/supabase/client')
@@ -527,7 +529,7 @@ function ActivityContent() {
         const { data: postsData, error: postsError } = await supabase
           .from('posts')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false })
         
         if (postsError) throw postsError
@@ -536,7 +538,7 @@ function ActivityContent() {
         const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
           .select('*, post_id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: false })
         
         if (commentsError) throw commentsError
@@ -637,7 +639,7 @@ function ActivityContent() {
       }
     }
     fetchMyActivities()
-  }, [user])
+  }, [user?.id])
 
   // 시간 경과 계산 함수
   const getTimeAgo = (date: Date): string => {
