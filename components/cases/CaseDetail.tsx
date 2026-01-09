@@ -53,6 +53,8 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
   const [showMenu, setShowMenu] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
+  const [engineerData, setEngineerData] = useState<any>(null)
+  const [loadingEngineer, setLoadingEngineer] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const supabase = createClient()
@@ -93,6 +95,35 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
 
     fetchLikes()
   }, [caseData.id, currentUserId, supabase])
+
+  // AI Engineer 데이터 조회
+  useEffect(() => {
+    async function fetchEngineerData() {
+      const employeeNumber = caseData.employee_number
+      if (!employeeNumber) return
+
+      setLoadingEngineer(true)
+      try {
+        const { data, error } = await supabase
+          .from('first_engineer')
+          .select('*')
+          .eq('employee_id', employeeNumber)
+          .maybeSingle()
+
+        if (error) {
+          console.error('Error fetching engineer data:', error)
+        } else if (data) {
+          setEngineerData(data)
+        }
+      } catch (err) {
+        console.error('Error fetching engineer data:', err)
+      } finally {
+        setLoadingEngineer(false)
+      }
+    }
+
+    fetchEngineerData()
+  }, [caseData.employee_number, supabase])
 
   const handleLike = async () => {
     if (!currentUserId) {
@@ -274,98 +305,138 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
       </div>
 
       <div>
-        {/* 작성자 정보 */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-full bg-ok-primary flex items-center justify-center text-white font-semibold">
-          {authorInitial}
-        </div>
-        <div className="flex-1">
-          <div className="font-semibold text-gray-900">{authorName}</div>
-          {caseData.employee_number && (
-            <div className="text-xs text-gray-500 mt-0.5">
-              사원번호: {caseData.employee_number}
+        {/* AI Engineer Profile */}
+        {engineerData ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+            <h1 className="text-xl font-bold mb-6 text-ok-primary leading-tight">AI Engineer Profile</h1>
+            <div className="flex items-center gap-6">
+              {/* 좌측 이미지 */}
+              <div className="flex-shrink-0">
+                <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-gray-200">
+                  <Image
+                    src="/engineer.png"
+                    alt={engineerData.name || 'Engineer'}
+                    fill
+                    sizes="96px"
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+              
+              {/* 우측 정보 */}
+              <div className="flex-1">
+                <div className="text-sm text-gray-600 mb-1">
+                  {[
+                    engineerData.company && engineerData.final_department 
+                      ? `${engineerData.company} ${engineerData.final_department}`
+                      : engineerData.final_department || engineerData.company,
+                    engineerData.name,
+                    engineerData.title
+                  ].filter(Boolean).join(' ')}
+                </div>
+                {isAdmin && (
+                  <>
+                    <div className="text-xs text-gray-500">
+                      AI Engineer: {engineerData.evaluation_result || '-'}
+                    </div>
+                    {engineerData.training_company && engineerData.training_department && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        교육 당시: {engineerData.training_company} {engineerData.training_department}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          )}
-          {caseData.ai_engineer_cohort && (
-            <div className="text-xs text-gray-500 mt-0.5">
-              AI Engineer {caseData.ai_engineer_cohort}
+          </div>
+        ) : (
+          /* 작성자 정보 (fallback) */
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-full bg-ok-primary flex items-center justify-center text-white font-semibold">
+              {authorInitial}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* 제목 */}
-      <h1 className="text-3xl font-bold mb-8 text-gray-900 leading-tight">{caseData.title}</h1>
-
-      {/* 리딩역할 및 AI활용수준 - 제목 바로 아래 */}
-      <div className="space-y-4 mb-6">
-        {caseData.leading_role && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">리딩역할</h3>
-            <p className="text-gray-600">{caseData.leading_role}</p>
+            <div className="flex-1">
+              <div className="font-semibold text-gray-900">{authorName}</div>
+              {caseData.employee_number && (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  사원번호: {caseData.employee_number}
+                </div>
+              )}
+              {caseData.ai_engineer_cohort && (
+                <div className="text-xs text-gray-500 mt-0.5">
+                  AI Engineer {caseData.ai_engineer_cohort}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {caseData.ai_usage_level && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">AI활용수준</h3>
-            {(() => {
-              const level = caseData.ai_usage_level.toLowerCase().trim()
-              let bgColor = 'bg-blue-100'
-              let borderColor = 'border-blue-300'
-              let textColor = 'text-blue-700'
-              
-              if (level.includes('중급') || level === '중급') {
-                bgColor = 'bg-orange-100'
-                borderColor = 'border-orange-300'
-                textColor = 'text-orange-700'
-              } else if (level.includes('고급') || level === '고급') {
-                bgColor = 'bg-pink-100'
-                borderColor = 'border-pink-300'
-                textColor = 'text-pink-700'
-              } else if (level.includes('기초') || level === '기초') {
-                bgColor = 'bg-blue-100'
-                borderColor = 'border-blue-300'
-                textColor = 'text-blue-700'
-              }
-              
-              return (
-                <span className={`inline-block px-4 py-1.5 rounded-lg border-2 ${bgColor} ${borderColor} ${textColor} font-semibold text-sm`}>
-                  {caseData.ai_usage_level}
-                </span>
-              )
-            })()}
-          </div>
-        )}
-      </div>
+      {/* 리딩역할 및 AI활용수준 - 관리자만 표시 */}
+      {isAdmin && (
+        <div className="space-y-4 mb-6">
+          {caseData.leading_role && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">리딩역할</h3>
+              <p className="text-gray-600">{caseData.leading_role}</p>
+            </div>
+          )}
 
-      {/* 역할 수행 내용 - 본문 위에 표시 */}
-      {caseData.activity_details && (
+          {caseData.ai_usage_level && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">AI활용수준</h3>
+              {(() => {
+                const level = caseData.ai_usage_level.toLowerCase().trim()
+                let bgColor = 'bg-blue-100'
+                let borderColor = 'border-blue-300'
+                let textColor = 'text-blue-700'
+                
+                if (level.includes('중급') || level === '중급') {
+                  bgColor = 'bg-orange-100'
+                  borderColor = 'border-orange-300'
+                  textColor = 'text-orange-700'
+                } else if (level.includes('고급') || level === '고급') {
+                  bgColor = 'bg-pink-100'
+                  borderColor = 'border-pink-300'
+                  textColor = 'text-pink-700'
+                } else if (level.includes('기초') || level === '기초') {
+                  bgColor = 'bg-blue-100'
+                  borderColor = 'border-blue-300'
+                  textColor = 'text-blue-700'
+                }
+                
+                return (
+                  <span className={`inline-block px-4 py-1.5 rounded-lg border-2 ${bgColor} ${borderColor} ${textColor} font-semibold text-sm`}>
+                    {caseData.ai_usage_level}
+                  </span>
+                )
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 역할 수행 내용 - 관리자만 표시 */}
+      {isAdmin && caseData.activity_details && (
         <div className="mb-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-2">역할 수행 내용</h3>
           <p className="text-gray-600 whitespace-pre-wrap">{caseData.activity_details}</p>
         </div>
       )}
 
-      {/* 본문 내용 */}
-      <div className="prose prose-lg max-w-none mb-10">
-        <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
-          {caseData.content || '내용이 없습니다.'}
+      {/* 본문 내용 - 관리자만 표시 */}
+      {isAdmin && (
+        <div className="prose prose-lg max-w-none mb-10">
+          <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {caseData.content || '내용이 없습니다.'}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 구분선 */}
       <div className="border-t border-gray-200 my-10"></div>
 
       {/* 추가 정보 섹션 */}
       <div className="space-y-6 mb-10">
-
-        {caseData.ai_tools && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">사용 AI 도구</h3>
-            <p className="text-gray-600">{caseData.ai_tools}</p>
-          </div>
-        )}
 
         {caseData.output_name && (
           <div>
@@ -381,6 +452,13 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
           </div>
         )}
 
+        {caseData.ai_tools && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">사용 AI 도구</h3>
+            <p className="text-gray-600">{caseData.ai_tools}</p>
+          </div>
+        )}
+
         {caseData.features && (
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">기능</h3>
@@ -392,13 +470,6 @@ export default function CaseDetail({ case: caseData, currentUserId }: CaseDetail
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">사용효과</h3>
             <p className="text-gray-600 whitespace-pre-wrap">{caseData.usage_effects}</p>
-          </div>
-        )}
-
-        {caseData.submission_format && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-2">제출형식</h3>
-            <p className="text-gray-600">{caseData.submission_format}</p>
           </div>
         )}
 

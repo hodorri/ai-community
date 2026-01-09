@@ -358,24 +358,48 @@ export default function CasesPage() {
           return
         }
         
+        // first_engineer 테이블에서 데이터 가져오기
+        const employeeNumbers = postsData
+          .map((post: any) => post.employee_number)
+          .filter((num: string | null) => num !== null && num !== undefined)
+        
+        let engineerDataMap = new Map<string, any>()
+        if (employeeNumbers.length > 0) {
+          const { data: engineerData, error: engineerError } = await supabase
+            .from('first_engineer')
+            .select('*')
+            .in('employee_id', employeeNumbers)
+          
+          if (!engineerError && engineerData) {
+            engineerData.forEach((engineer: any) => {
+              engineerDataMap.set(engineer.employee_id, engineer)
+            })
+          }
+        }
+        
         // AI 활용사례는 외부에서 가져온 데이터이므로 프로필 정보는 author_name, author_email 사용
         // attached_file_url이 없으면 source_url을 사용
-        const postsWithCounts = postsData.map((post: any) => ({
-          ...post,
-          attached_file_url: post.attached_file_url || post.source_url || null,
-          user: {
-            email: post.author_email || null,
-            name: post.author_name || null,
-            nickname: post.author_name || null,
-            avatar_url: null,
-            company: null,
-            team: null,
-            position: null,
-          },
-          likes_count: 0, // AI 활용사례는 좋아요/댓글 기능 없음
-          comments_count: 0,
-          user_id: post.imported_by || null, // imported_by를 user_id로 매핑
-        }))
+        const postsWithCounts = postsData.map((post: any) => {
+          const engineerData = post.employee_number ? engineerDataMap.get(post.employee_number) : null
+          
+          return {
+            ...post,
+            attached_file_url: post.attached_file_url || post.source_url || null,
+            engineer_data: engineerData, // first_engineer 데이터 추가
+            user: {
+              email: post.author_email || null,
+              name: post.author_name || null,
+              nickname: post.author_name || null,
+              avatar_url: null,
+              company: null,
+              team: null,
+              position: null,
+            },
+            likes_count: 0, // AI 활용사례는 좋아요/댓글 기능 없음
+            comments_count: 0,
+            user_id: post.imported_by || null, // imported_by를 user_id로 매핑
+          }
+        })
         
         console.log('[AI 활용사례] 게시글 조회 완료 - 총', postsWithCounts.length, '개')
         setPosts(postsWithCounts)

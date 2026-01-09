@@ -53,34 +53,83 @@ function parseExcelFile(buffer: Buffer): ExcelCaseItem[] {
       return name || title
     })
     
+    // 첫 번째 행의 컬럼명 확인 (디버깅용)
+    if (filteredData.length > 0) {
+      const firstRow = filteredData[0]
+      const columnNames = Object.keys(firstRow)
+      console.log('[엑셀 파싱] 발견된 컬럼명:', columnNames)
+      console.log('[엑셀 파싱] 첫 번째 행 전체 데이터:', JSON.stringify(firstRow, null, 2))
+    }
+    
     // ExcelCaseItem 형식으로 변환
-    return filteredData.map((row) => {
+    return filteredData.map((row, index) => {
       // 한국어 컬럼명과 영어 컬럼명 모두 지원
       const getValue = (koreanName: string, englishName?: string) => {
         const value = row[koreanName] || row[englishName || ''] || ''
         return String(value).trim() || undefined
       }
       
-      const title = getValue('제목', 'title') || getValue('산출물명', 'output_name') || getValue('활동내용', 'activity_details') || '제목 없음'
+      // 제목은 산출물명을 우선 사용, 없으면 활동내용 사용
+      const title = getValue('산출물명', 'output_name') || getValue('제목', 'title') || getValue('활동내용', 'activity_details') || '제목 없음'
+      // 내용은 활동내용 사용
       const content = getValue('활동내용', 'activity_details') || getValue('내용', 'content') || ''
       const authorName = getValue('이름', 'author_name') || getValue('name', 'Name')
       const authorEmail = getValue('이메일', 'author_email') || getValue('email', 'Email')
-      const employeeNumber = getValue('사년', 'employee_number') || getValue('사원번호', 'employee_id')
-      const leadingRole = getValue('리딩역할', 'leading_role')
+      // 사번 컬럼명 여러 가지 시도 (엑셀 파일의 실제 컬럼명 확인 필요)
+      const employeeNumber = getValue('사번', 'employee_number') 
+        || getValue('사원번호', 'employee_id') 
+        || getValue('사년', 'employee_number')
+        || getValue('사번 ', 'employee_number') // 공백 포함
+        || getValue('사번\n', 'employee_number') // 줄바꿈 포함
+      
+      // 디버깅: 첫 번째 행의 사번 읽기 시도
+      if (index === 0) {
+        console.log('[엑셀 파싱] 첫 번째 행 사번 읽기 시도:', {
+          '사번': row['사번'],
+          '사원번호': row['사원번호'],
+          '사년': row['사년'],
+          'employee_number': row['employee_number'],
+          'employee_id': row['employee_id'],
+          '최종값': employeeNumber
+        })
+      }
+      const leadingRole = getValue('리딩 역할', 'leading_role') || getValue('리딩역할', 'leading_role')
       const activityDetails = getValue('활동내용', 'activity_details')
-      const aiUsageLevel = getValue('AI활용수준', 'ai_usage_level')
-      const aiUsageEvaluationReason = getValue('AI활용평가이유', 'ai_usage_evaluation_reason')
+      const aiUsageLevel = getValue('AI 활용수준', 'ai_usage_level') || getValue('AI활용수준', 'ai_usage_level')
+      const aiUsageEvaluationReason = getValue('AI 활용 평가이유', 'ai_usage_evaluation_reason') || getValue('AI활용평가이유', 'ai_usage_evaluation_reason')
       const outputName = getValue('산출물명', 'output_name')
-      const aiTools = getValue('업무연관여누사용 Al', 'ai_tools') || getValue('AI도구', 'ai_tools')
-      const developmentBackground = getValue('개발배경', 'development_background')
+      const aiTools = getValue('사용 AI툴', 'ai_tools')
+        || getValue('사용 AI 툴', 'ai_tools')
+        || getValue('사용AI툴', 'ai_tools')
+        || getValue('업무 연관 AI 사용 툴', 'ai_tools') 
+        || getValue('업무연관 AI 사용 툴', 'ai_tools')
+        || getValue('업무연관여누사용 Al', 'ai_tools') 
+        || getValue('AI도구', 'ai_tools')
+        || getValue('업무 연관 AI 사용 툴 ', 'ai_tools') // 공백 포함
+      
+      // 디버깅: 첫 번째 행의 ai_tools 읽기 시도
+      if (index === 0) {
+        console.log('[엑셀 파싱] 첫 번째 행 ai_tools 읽기 시도:', {
+          '사용 AI툴': row['사용 AI툴'],
+          '사용 AI 툴': row['사용 AI 툴'],
+          '사용AI툴': row['사용AI툴'],
+          '업무 연관 AI 사용 툴': row['업무 연관 AI 사용 툴'],
+          '업무연관 AI 사용 툴': row['업무연관 AI 사용 툴'],
+          '업무연관여누사용 Al': row['업무연관여누사용 Al'],
+          'AI도구': row['AI도구'],
+          'ai_tools': row['ai_tools'],
+          '최종값': aiTools
+        })
+      }
+      const developmentBackground = getValue('개발 배경', 'development_background') || getValue('개발배경', 'development_background')
       const features = getValue('기능', 'features')
-      const usageEffects = getValue('사용효과', 'usage_effects')
-      const developmentLevelEvaluationReason = getValue('개발수준 평가이유', 'development_level_evaluation_reason')
-      const submissionFormat = getValue('제출형식', 'submission_format')
-      const attachedFileName = getValue('첨부파일명', 'attached_file_name')
-      const attachedFileSize = getValue('파일크기', 'attached_file_size')
+      const usageEffects = getValue('사용 효과', 'usage_effects') || getValue('사용효과', 'usage_effects')
+      const developmentLevelEvaluationReason = getValue('개발 수준 평가이유', 'development_level_evaluation_reason') || getValue('개발수준 평가이유', 'development_level_evaluation_reason')
+      const submissionFormat = getValue('제출 형식', 'submission_format') || getValue('제출형식', 'submission_format')
+      const attachedFileName = getValue('첨부 파일명', 'attached_file_name') || getValue('첨부파일명', 'attached_file_name')
+      const attachedFileSize = getValue('파일 크기', 'attached_file_size') || getValue('파일크기', 'attached_file_size')
       const sourceUrl = getValue('URL', 'url') || getValue('링크', 'link') || getValue('source_url', 'sourceUrl')
-      const publishedAt = getValue('제출일시', 'published_at') || getValue('제출일', 'submission_date')
+      const publishedAt = getValue('제출 일시', 'published_at') || getValue('제출일시', 'published_at') || getValue('제출일', 'submission_date')
       
       return {
         title,

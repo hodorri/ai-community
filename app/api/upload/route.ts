@@ -1,9 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // 먼저 일반 클라이언트로 인증 확인
+    const { createClient: createServerClient } = await import('@/lib/supabase/server')
+    const serverSupabase = await createServerClient()
     
     // Authorization 헤더에서 토큰 확인
     const authHeader = request.headers.get('authorization')
@@ -13,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       // 토큰으로 직접 사용자 확인
-      const { data: { user: tokenUser }, error: tokenError } = await supabase.auth.getUser(token)
+      const { data: { user: tokenUser }, error: tokenError } = await serverSupabase.auth.getUser(token)
       
       if (!tokenError && tokenUser) {
         user = tokenUser
@@ -22,7 +27,7 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // 쿠키에서 인증 정보 가져오기
-      const { data: { user: cookieUser }, error: cookieError } = await supabase.auth.getUser()
+      const { data: { user: cookieUser }, error: cookieError } = await serverSupabase.auth.getUser()
       user = cookieUser
       authError = cookieError
     }
@@ -39,12 +44,35 @@ export async function POST(request: NextRequest) {
 
     console.log('[파일 업로드] 인증된 사용자:', user.email)
 
+    // 서비스 롤 키로 클라이언트 생성 (RLS 우회)
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[파일 업로드] SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.')
+      return NextResponse.json({ 
+        error: '서버 설정 오류: SUPABASE_SERVICE_ROLE_KEY가 필요합니다.',
+        details: '환경 변수를 확인해주세요.'
+      }, { status: 500 })
+    }
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
     if (!file) {
       return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 })
     }
+
+    console.log('[파일 업로드] 파일 정보:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    })
 
     // 빈 파일 체크
     if (file.size === 0) {
@@ -57,8 +85,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 파일 확장자 추출 (확장자가 없어도 업로드 가능하도록 처리)
-    const fileExt = file.name.includes('.') ? file.name.split('.').pop() : 'file'
+    const fileExt = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : 'file'
     const fileName = `${user.id}/${Date.now()}.${fileExt}`
+    
+    console.log('[파일 업로드] 업로드할 파일명:', fileName, '확장자:', fileExt)
     const fileBuffer = await file.arrayBuffer()
 
     // 파일 업로드용 버킷 사용 (avatars 버킷을 파일 저장소로도 사용)
@@ -66,6 +96,8 @@ export async function POST(request: NextRequest) {
 
     // contentType이 없거나 빈 문자열인 경우 'application/octet-stream'으로 설정
     const contentType = file.type || 'application/octet-stream'
+
+    console.log('[파일 업로드] Storage 업로드 시작:', { bucketName, fileName, contentType })
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -75,8 +107,8 @@ export async function POST(request: NextRequest) {
       })
 
     if (error) {
-      console.error('Storage upload error:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('[파일 업로드] Storage upload error:', error)
+      console.error('[파일 업로드] Error details:', JSON.stringify(error, null, 2))
       // 에러 메시지를 더 자세히 반환
       return NextResponse.json({ 
         error: `파일 업로드에 실패했습니다: ${error.message || JSON.stringify(error)}`,

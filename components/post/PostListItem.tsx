@@ -13,6 +13,12 @@ interface PostListItemProps {
       team?: string
       position?: string
     }
+    engineer_data?: {
+      company?: string
+      final_department?: string
+      name?: string
+      title?: string
+    }
   }
   linkPrefix?: string // 링크 접두사 (기본값: '/post')
   noLink?: boolean // 링크 비활성화 (기본값: false)
@@ -126,15 +132,28 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
             {contentPreview || '내용이 없습니다.'}
           </p>
           <div className="flex items-center gap-2 text-xs text-gray-500">
-            {/* AI 활용사례일 때는 "작성자명 · AI Engineer [기수] · 시간" 형태로 표시 */}
+            {/* AI 활용사례일 때는 "회사 소속 이름 직책 · AI Engineer [기수] · 시간" 형태로 표시 */}
             {linkPrefix === '/cases' ? (
               <>
-                {authorName && (
+                {post.engineer_data ? (
+                  <>
+                    <span>
+                      {[
+                        post.engineer_data.company && post.engineer_data.final_department 
+                          ? `${post.engineer_data.company} ${post.engineer_data.final_department}`
+                          : post.engineer_data.final_department || post.engineer_data.company,
+                        post.engineer_data.name,
+                        post.engineer_data.title
+                      ].filter(Boolean).join(' ')}
+                    </span>
+                    <span>·</span>
+                  </>
+                ) : authorName ? (
                   <>
                     <span>{authorName}</span>
                     <span>·</span>
                   </>
-                )}
+                ) : null}
                 <span>
                   AI Engineer{post.ai_engineer_cohort ? ` ${post.ai_engineer_cohort}` : ''}
                 </span>

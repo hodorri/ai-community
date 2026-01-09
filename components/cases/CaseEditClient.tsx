@@ -129,21 +129,28 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
 
   const onUploadFile = async (file: File) => {
     try {
+      console.log('[파일 업로드] onUploadFile 호출됨:', file.name, file.size, file.type)
       setUploading(true)
       
       // 사용자 인증 확인 및 세션 토큰 가져오기
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (!user || userError) {
+        console.error('[파일 업로드] 사용자 인증 실패:', userError)
         alert('로그인이 필요합니다. 페이지를 새로고침한 후 다시 시도해주세요.')
         return
       }
 
+      console.log('[파일 업로드] 사용자 인증 성공:', user.email)
+
       // 세션 토큰 가져오기
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       if (!session || sessionError) {
+        console.error('[파일 업로드] 세션 가져오기 실패:', sessionError)
         alert('세션이 만료되었습니다. 다시 로그인해주세요.')
         return
       }
+
+      console.log('[파일 업로드] 세션 토큰 획득 성공')
 
       const fd = new FormData()
       fd.append('file', file)
@@ -428,19 +435,38 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) onUploadFile(file)
+                  console.log('[파일 업로드] 파일 선택됨:', file?.name, file?.type, file?.size)
+                  if (file) {
+                    onUploadFile(file)
+                  }
                 }}
                 disabled={uploading}
                 id="case-attach-file"
               />
-              <label
-                htmlFor="case-attach-file"
-                className={`px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-colors ${
-                  uploading ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'
+              <button
+                type="button"
+                onClick={() => {
+                  if (uploading) {
+                    console.log('[파일 업로드] 업로드 중이므로 클릭 무시')
+                    return
+                  }
+                  console.log('[파일 업로드] 버튼 클릭됨, 파일 선택 다이얼로그 열기')
+                  if (fileRef.current) {
+                    fileRef.current.disabled = false
+                    fileRef.current.click()
+                  } else {
+                    console.error('[파일 업로드] fileRef.current가 null입니다')
+                  }
+                }}
+                disabled={uploading}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  uploading 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
                 }`}
               >
                 {uploading ? '업로드 중...' : '파일 업로드'}
-              </label>
+              </button>
             </div>
           </div>
 
@@ -455,25 +481,6 @@ export default function CaseEditClient({ caseId }: { caseId: string }) {
             <p className="text-xs text-gray-500 mt-2">링크 또는 이미지 URL을 넣을 수 있습니다.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">첨부파일명</label>
-              <input
-                value={form.attached_file_name || ''}
-                onChange={(e) => setForm((p: any) => ({ ...p, attached_file_name: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">파일크기</label>
-              <input
-                value={form.attached_file_size || ''}
-                onChange={(e) => setForm((p: any) => ({ ...p, attached_file_size: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="예: 24.9 KB"
-              />
-            </div>
-          </div>
 
           {attachmentPreviewUrl && isImageUrl(attachmentPreviewUrl) && (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
