@@ -147,7 +147,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <Link
               href="/guide"
-              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-semibold"
+              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium"
             >
               OKAI 가이드
             </Link>
@@ -155,14 +155,14 @@ export default function Navbar() {
               href="https://okfngroup.ubob.com/Account/Login"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-semibold"
+              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium"
             >
               OK학당
             </Link>
           </div>
           <button
             onClick={() => setShowAIInspiration(true)}
-            className="text-sm text-gray-600 hover:text-ok-primary transition-colors flex items-center gap-1 font-semibold"
+            className="text-sm text-gray-600 hover:text-ok-primary transition-colors flex items-center gap-1 font-medium"
             title="오늘의 AI Inspiration"
           >
             <span>💡</span>

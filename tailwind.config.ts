@@ -18,6 +18,14 @@ const config: Config = {
           dark: "#CC5200",
         },
       },
+      fontFamily: {
+        'ok': ['okfont', 'sans-serif'],
+      },
+      fontWeight: {
+        'ok-bold': '700',
+        'ok-medium': '500',
+        'ok-light': '300',
+      },
     },
   },
   plugins: [],
