@@ -25,7 +25,13 @@ export default function LoginForm() {
     })
 
     if (authError) {
-      setError(authError.message)
+      if (authError.message.includes('Invalid login credentials')) {
+        setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+      } else if (authError.message.includes('Email not confirmed')) {
+        setError('이메일 인증이 완료되지 않았습니다. 관리자에게 문의해주세요.')
+      } else {
+        setError(authError.message)
+      }
       setLoading(false)
       return
     }
