@@ -1505,7 +1505,7 @@ function ActivityContent() {
 }
 
 function MyBadges({ userId }: { userId: string }) {
-  const [badges, setBadges] = useState<{ id: string; name: string; image: string }[]>([])
+  const [badges, setBadges] = useState<{ id: string; name: string; image: string; description?: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -1528,13 +1528,14 @@ function MyBadges({ userId }: { userId: string }) {
 
         const { data: definitions } = await supabase
           .from('badge_definitions')
-          .select('id, name, image_path')
+          .select('id, name, description, image_path')
           .in('id', badgeIds)
 
         if (definitions && definitions.length > 0) {
           setBadges(definitions.map((d: any) => ({
             id: d.id,
             name: d.name,
+            description: d.description || '',
             image: d.image_path,
           })))
         } else {
@@ -1562,7 +1563,7 @@ function MyBadges({ userId }: { userId: string }) {
         <h2 className="text-xl font-bold text-gray-900 mb-4">나의 뱃지</h2>
         <div className="flex flex-wrap gap-4">
           {badges.map(badge => (
-            <div key={badge.id} className="group flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl min-w-[100px] cursor-default relative">
+            <div key={badge.id} className="group flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl min-w-[120px] cursor-default relative">
               <div className="transition-transform duration-300 ease-out group-hover:scale-[2] group-hover:-translate-y-4 group-hover:drop-shadow-lg z-10">
                 <Image
                   src={badge.image}
@@ -1573,6 +1574,9 @@ function MyBadges({ userId }: { userId: string }) {
                 />
               </div>
               <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{badge.name}</span>
+              {badge.description && (
+                <span className="text-[11px] text-gray-500 text-center leading-snug">{badge.description}</span>
+              )}
             </div>
           ))}
         </div>

@@ -26,6 +26,7 @@ export default function BadgeManager() {
   const [activeView, setActiveView] = useState<'users' | 'settings'>('users')
   const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
   const supabase = createClient()
 
   useEffect(() => { fetchBadgeDefinitions(); fetchUsers() }, [])
@@ -36,15 +37,15 @@ export default function BadgeManager() {
       .select('*')
       .order('sort_order', { ascending: true })
     if (data && data.length > 0) {
-      setBadges(data.map((b: any) => ({ id: b.id, name: b.name, image: b.image_path })))
+      setBadges(data.map((b: any) => ({ id: b.id, name: b.name, description: b.description || '', image: b.image_path })))
     }
   }
 
-  async function handleUpdateBadgeName(badgeId: string) {
+  async function handleUpdateBadge(badgeId: string) {
     if (!editName.trim()) return
     const { error } = await supabase
       .from('badge_definitions')
-      .update({ name: editName.trim(), updated_at: new Date().toISOString() })
+      .update({ name: editName.trim(), description: editDescription.trim(), updated_at: new Date().toISOString() })
       .eq('id', badgeId)
     if (error) {
       alert('수정 실패: ' + error.message)
@@ -151,6 +152,7 @@ export default function BadgeManager() {
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase">뱃지</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase">ID</th>
                 <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase">이름</th>
+                <th className="py-3 px-4 text-left text-xs font-semibold text-gray-500 uppercase">설명</th>
                 <th className="py-3 px-4 text-center text-xs font-semibold text-gray-500 uppercase">수정</th>
               </tr>
             </thead>
@@ -169,20 +171,34 @@ export default function BadgeManager() {
                         onChange={e => setEditName(e.target.value)}
                         className="px-2 py-1 border border-gray-300 rounded text-sm w-48"
                         autoFocus
-                        onKeyDown={e => e.key === 'Enter' && handleUpdateBadgeName(b.id)}
+                        onKeyDown={e => e.key === 'Enter' && handleUpdateBadge(b.id)}
                       />
                     ) : (
                       <span className="font-semibold text-gray-900 text-sm">{b.name}</span>
                     )}
                   </td>
+                  <td className="py-3 px-4">
+                    {editingBadgeId === b.id ? (
+                      <input
+                        type="text"
+                        value={editDescription}
+                        onChange={e => setEditDescription(e.target.value)}
+                        placeholder="뱃지 설명을 입력하세요"
+                        className="px-2 py-1 border border-gray-300 rounded text-sm w-64"
+                        onKeyDown={e => e.key === 'Enter' && handleUpdateBadge(b.id)}
+                      />
+                    ) : (
+                      <span className="text-gray-500 text-sm">{b.description || '-'}</span>
+                    )}
+                  </td>
                   <td className="py-3 px-4 text-center">
                     {editingBadgeId === b.id ? (
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleUpdateBadgeName(b.id)} className="text-ok-primary text-sm font-semibold">저장</button>
+                        <button onClick={() => handleUpdateBadge(b.id)} className="text-ok-primary text-sm font-semibold">저장</button>
                         <button onClick={() => setEditingBadgeId(null)} className="text-gray-500 text-sm">취소</button>
                       </div>
                     ) : (
-                      <button onClick={() => { setEditingBadgeId(b.id); setEditName(b.name) }} className="text-ok-primary hover:text-ok-dark text-sm font-semibold">수정</button>
+                      <button onClick={() => { setEditingBadgeId(b.id); setEditName(b.name); setEditDescription(b.description || '') }} className="text-ok-primary hover:text-ok-dark text-sm font-semibold">수정</button>
                     )}
                   </td>
                 </tr>
