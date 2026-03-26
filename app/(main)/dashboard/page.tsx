@@ -1562,14 +1562,16 @@ function MyBadges({ userId }: { userId: string }) {
         <h2 className="text-xl font-bold text-gray-900 mb-4">나의 뱃지</h2>
         <div className="flex flex-wrap gap-4">
           {badges.map(badge => (
-            <div key={badge.id} className="flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl min-w-[80px]">
-              <Image
-                src={badge.image}
-                alt={badge.name}
-                width={48}
-                height={48}
-                className="object-contain"
-              />
+            <div key={badge.id} className="group flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl min-w-[100px] cursor-default relative">
+              <div className="transition-transform duration-300 ease-out group-hover:scale-[2] group-hover:-translate-y-4 group-hover:drop-shadow-lg z-10">
+                <Image
+                  src={badge.image}
+                  alt={badge.name}
+                  width={56}
+                  height={56}
+                  className="object-contain"
+                />
+              </div>
               <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{badge.name}</span>
             </div>
           ))}
