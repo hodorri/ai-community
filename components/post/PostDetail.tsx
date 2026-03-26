@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import UserBadges from '@/components/UserBadges'
 import type { Post } from '@/lib/types/database'
 
 interface PostDetailProps {
@@ -241,7 +242,10 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
           </div>
         )}
         <div className="flex-1">
-          <div className="font-semibold text-gray-900">{displayName}</div>
+          <div className="font-semibold text-gray-900 inline-flex items-center">
+            {displayName}
+            {post.user_id && <UserBadges userId={post.user_id} size={20} />}
+          </div>
           {authorProfile && (authorProfile.company || authorProfile.team || authorProfile.name || authorProfile.position) && (
             <div className="text-xs text-gray-500 mt-0.5">
               {[authorProfile.company, authorProfile.team, authorProfile.name, authorProfile.position].filter(Boolean).join(' ')}

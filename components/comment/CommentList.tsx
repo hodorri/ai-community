@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import UserBadges from '@/components/UserBadges'
 import type { Comment } from '@/lib/types/database'
 import CommentForm from './CommentForm'
 
@@ -261,7 +262,10 @@ function CommentItem({
         {/* 댓글 내용 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-gray-900">{displayName}</span>
+            <span className="font-semibold text-gray-900 inline-flex items-center">
+              {displayName}
+              {comment.user_id && <UserBadges userId={comment.user_id} size={16} />}
+            </span>
             <span className="text-xs text-gray-500">{timeAgo}</span>
           </div>
           {comment.user && (comment.user.company || comment.user.team || comment.user.name || comment.user.position) && (

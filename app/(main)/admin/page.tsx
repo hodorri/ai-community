@@ -12,8 +12,9 @@ const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
 import PointsManager from '@/components/admin/PointsManager'
 import EngineerManager from '@/components/admin/EngineerManager'
+import BadgeManager from '@/components/admin/BadgeManager'
 
-type TabType = 'users' | 'cops' | 'guide' | 'points' | 'engineers'
+type TabType = 'users' | 'cops' | 'guide' | 'points' | 'engineers' | 'badges'
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
@@ -870,10 +871,20 @@ export default function AdminPage() {
             >
               AI Engineer
             </button>
+            <button
+              onClick={() => setActiveTab('badges')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'badges'
+                  ? 'border-ok-primary text-ok-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              뱃지 관리
+            </button>
           </div>
         </div>
 
-        {activeTab !== 'guide' && activeTab !== 'points' && activeTab !== 'engineers' && (
+        {activeTab !== 'guide' && activeTab !== 'points' && activeTab !== 'engineers' && activeTab !== 'badges' && (
           <>
             <p className="text-gray-600 mb-4">
               {activeTab === 'users' ? '사용자 관리' : 'CoP 관리'}
@@ -1533,6 +1544,8 @@ export default function AdminPage() {
         <PointsManager />
       ) : activeTab === 'engineers' ? (
         <EngineerManager />
+      ) : activeTab === 'badges' ? (
+        <BadgeManager />
       ) : null}
 
       {/* 수정 모달 */}

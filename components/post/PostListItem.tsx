@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import UserBadges from '@/components/UserBadges'
 import type { Post } from '@/lib/types/database'
 
 interface PostListItemProps {
@@ -138,9 +139,9 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
               <>
                 {post.engineer_data ? (
                   <>
-                    <span>
+                    <span className="inline-flex items-center">
                       {[
-                        post.engineer_data.company && post.engineer_data.final_department 
+                        post.engineer_data.company && post.engineer_data.final_department
                           ? `${post.engineer_data.company} ${post.engineer_data.final_department}`
                           : post.engineer_data.final_department || post.engineer_data.company,
                         post.engineer_data.name,
@@ -151,7 +152,7 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
                   </>
                 ) : authorName ? (
                   <>
-                    <span>{authorName}</span>
+                    <span className="inline-flex items-center">{authorName}</span>
                     <span>·</span>
                   </>
                 ) : null}
@@ -163,7 +164,10 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
               </>
             ) : (
               <>
-                <span>{authorName}</span>
+                <span className="inline-flex items-center">
+                  {authorName}
+                  {post.user_id && <UserBadges userId={post.user_id} size={16} />}
+                </span>
                 {post.user && (post.user.company || post.user.team || post.user.name || post.user.position) && (
                   <>
                     <span>·</span>
