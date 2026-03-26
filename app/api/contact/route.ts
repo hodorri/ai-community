@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 export async function POST(request: NextRequest) {
@@ -14,24 +15,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '필수 항목을 입력해주세요.' }, { status: 400 })
     }
 
-    // DB에 문의 저장
-    if (SUPABASE_SERVICE_ROLE_KEY) {
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-        auth: { autoRefreshToken: false, persistSession: false }
+    // DB에 문의 저장 (서비스 롤 키 또는 anon 키로)
+    const key = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY
+    const supabase = createClient(SUPABASE_URL, key, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+
+    const { error: dbError } = await supabase
+      .from('contacts')
+      .insert({
+        name: name.trim(),
+        employee_number: employeeNumber?.trim() || null,
+        content: content.trim(),
+        contact_info: contact.trim(),
       })
 
-      const { error: dbError } = await supabase
-        .from('contacts')
-        .insert({
-          name: name.trim(),
-          employee_number: employeeNumber?.trim() || null,
-          content: content.trim(),
-          contact_info: contact.trim(),
-        })
-
-      if (dbError) {
-        console.error('문의 저장 오류:', dbError)
-      }
+    if (dbError) {
+      console.error('문의 저장 오류:', dbError)
     }
 
     // 이메일 발송 시도 (실패해도 DB에는 저장됨)
