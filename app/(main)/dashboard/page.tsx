@@ -1253,6 +1253,9 @@ function ActivityContent() {
         </div>
       </div>
 
+      {/* 나의 뱃지 */}
+      {user && <MyBadges userId={user.id} />}
+
       {/* 활동 포인트 현황 */}
       <div className="mb-6">
         <button
@@ -1495,6 +1498,82 @@ function ActivityContent() {
               })}
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MyBadges({ userId }: { userId: string }) {
+  const [badges, setBadges] = useState<{ id: string; name: string; image: string; description?: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchBadges() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        const { data: userBadges } = await supabase
+          .from('user_badges')
+          .select('badge_id')
+          .eq('user_id', userId)
+
+        if (!userBadges || userBadges.length === 0) {
+          setLoading(false)
+          return
+        }
+
+        const badgeIds = userBadges.map((b: any) => b.badge_id)
+
+        const { data: definitions } = await supabase
+          .from('badge_definitions')
+          .select('id, name, image_path, description')
+          .in('id', badgeIds)
+
+        if (definitions && definitions.length > 0) {
+          setBadges(definitions.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            image: d.image_path,
+            description: d.description,
+          })))
+        } else {
+          const { DEFAULT_BADGES } = await import('@/lib/badges')
+          setBadges(
+            badgeIds
+              .map((bid: string) => DEFAULT_BADGES.find(b => b.id === bid))
+              .filter(Boolean) as any[]
+          )
+        }
+      } catch (err) {
+        console.error('뱃지 조회 오류:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchBadges()
+  }, [userId])
+
+  if (loading || badges.length === 0) return null
+
+  return (
+    <div className="mb-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">나의 뱃지</h2>
+        <div className="flex flex-wrap gap-4">
+          {badges.map(badge => (
+            <div key={badge.id} className="flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl min-w-[80px]">
+              <Image
+                src={badge.image}
+                alt={badge.name}
+                width={48}
+                height={48}
+                className="object-contain"
+              />
+              <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{badge.name}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
