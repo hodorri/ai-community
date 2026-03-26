@@ -34,6 +34,13 @@ export default function AdminPage() {
   const [editingUsers, setEditingUsers] = useState(false)
   const [editingCops, setEditingCops] = useState(false)
   const [editFormData, setEditFormData] = useState<any>({})
+  // 비밀번호 초기화
+  const [showResetPwModal, setShowResetPwModal] = useState(false)
+  const [resetPwUserId, setResetPwUserId] = useState('')
+  const [resetPwUserName, setResetPwUserName] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [resettingPw, setResettingPw] = useState(false)
+
   // 가이드 편집 관련
   const [guideData, setGuideData] = useState<any>(null)
   const [guideLoading, setGuideLoading] = useState(false)
@@ -995,6 +1002,26 @@ export default function AdminPage() {
                   >
                     {deletingUsers ? '삭제 중...' : `삭제하기 (${selectedUsers.size})`}
                   </button>
+                  <button
+                    onClick={() => {
+                      if (selectedUsers.size !== 1) return
+                      const userId = Array.from(selectedUsers)[0]
+                      const selectedUser = allUsers.find(u => u.id === userId)
+                      if (selectedUser) {
+                        setResetPwUserId(selectedUser.id)
+                        setResetPwUserName(selectedUser.name || selectedUser.nickname || selectedUser.email || '사용자')
+                        setShowResetPwModal(true)
+                      }
+                    }}
+                    disabled={selectedUsers.size !== 1}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      selectedUsers.size !== 1
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                    }`}
+                  >
+                    비밀번호 초기화
+                  </button>
                 </div>
               )}
               {activeTab === 'cops' && (
@@ -1547,6 +1574,55 @@ export default function AdminPage() {
       ) : activeTab === 'badges' ? (
         <BadgeManager />
       ) : null}
+
+      {/* 비밀번호 초기화 모달 */}
+      {showResetPwModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">비밀번호 초기화</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              <span className="font-semibold">{resetPwUserName}</span>님의 비밀번호를 변경합니다.
+            </p>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="새 비밀번호 (최소 6자)"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary mb-4"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setShowResetPwModal(false); setNewPassword('') }} className="px-4 py-2 border border-gray-300 rounded-xl font-semibold hover:bg-gray-50">취소</button>
+              <button
+                disabled={resettingPw || newPassword.length < 6}
+                onClick={async () => {
+                  setResettingPw(true)
+                  try {
+                    const session = await supabase.auth.getSession()
+                    const res = await fetch('/api/admin/reset-password', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ userId: resetPwUserId, newPassword }),
+                    })
+                    const result = await res.json()
+                    if (!res.ok) throw new Error(result.error)
+                    alert('비밀번호가 변경되었습니다.')
+                    setShowResetPwModal(false)
+                    setNewPassword('')
+                  } catch (err: any) {
+                    alert('비밀번호 변경 실패: ' + err.message)
+                  } finally {
+                    setResettingPw(false)
+                  }
+                }}
+                className="px-4 py-2 bg-ok-primary text-white rounded-xl font-semibold hover:bg-ok-dark disabled:opacity-50"
+              >
+                {resettingPw ? '변경 중...' : '비밀번호 변경'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 수정 모달 */}
       {showEditModal && (
