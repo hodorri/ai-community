@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
+import { earnPoints } from '@/lib/points'
 import Image from 'next/image'
 import type { CoP } from '@/lib/types/database'
 
@@ -346,6 +347,11 @@ export default function CopDetailClient({ cop }: CopDetailClientProps) {
 
       if (error) {
         throw error
+      }
+
+      // CoP 가입 승인 시 포인트 자동 적립
+      if (request?.user_id) {
+        await earnPoints(supabase, request.user_id, 'cop_join', cop.id, `CoP 가입: ${cop.name}`)
       }
 
       // 승인된 멤버에게 이메일 알림 발송

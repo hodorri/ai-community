@@ -10,7 +10,9 @@ import Image from 'next/image'
 // 관리자 이메일 (환경 변수에서 가져오거나 설정)
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
-type TabType = 'users' | 'cops' | 'guide'
+import PointsManager from '@/components/admin/PointsManager'
+
+type TabType = 'users' | 'cops' | 'guide' | 'points'
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
@@ -847,10 +849,20 @@ export default function AdminPage() {
             >
               가이드 관리
             </button>
+            <button
+              onClick={() => setActiveTab('points')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'points'
+                  ? 'border-ok-primary text-ok-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              포인트 관리
+            </button>
           </div>
         </div>
 
-        {activeTab !== 'guide' && (
+        {activeTab !== 'guide' && activeTab !== 'points' && (
           <>
             <p className="text-gray-600 mb-4">
               {activeTab === 'users' ? '사용자 관리' : 'CoP 관리'}
@@ -1506,6 +1518,8 @@ export default function AdminPage() {
             <div className="text-center py-12 text-gray-500">데이터를 불러올 수 없습니다.</div>
           )}
         </div>
+      ) : activeTab === 'points' ? (
+        <PointsManager />
       ) : null}
 
       {/* 수정 모달 */}

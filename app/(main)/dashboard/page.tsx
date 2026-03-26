@@ -641,6 +641,8 @@ function ActivityContent() {
   const { profile } = useProfile()
   const [activities, setActivities] = useState<any[]>([])
   const [myCops, setMyCops] = useState<any[]>([])
+  const [myPoints, setMyPoints] = useState<any[]>([])
+  const [totalPoints, setTotalPoints] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -680,6 +682,27 @@ function ActivityContent() {
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
+
+        // 내 포인트 조회
+        const { data: pointsData } = await supabase
+          .from('activity_points')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(10)
+
+        if (pointsData) {
+          setMyPoints(pointsData)
+          const total = pointsData.reduce((sum: number, p: any) => sum + p.points, 0)
+
+          // 전체 포인트는 별도로 계산 (limit 없이)
+          const { data: allPoints } = await supabase
+            .from('activity_points')
+            .select('points')
+            .eq('user_id', userId)
+
+          setTotalPoints((allPoints || []).reduce((sum: number, p: any) => sum + p.points, 0))
+        }
 
         if (!copError && copMemberships) {
           const copsWithDetails = await Promise.all(
@@ -891,6 +914,40 @@ function ActivityContent() {
           >
             프로필 수정
           </Link>
+        </div>
+      </div>
+
+      {/* 활동 포인트 현황 */}
+      <div className="mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">활동 포인트</h2>
+            <div className="text-right">
+              <span className="text-3xl font-bold text-ok-primary">{totalPoints}</span>
+              <span className="text-gray-500 text-sm ml-1">점</span>
+            </div>
+          </div>
+          {myPoints.length > 0 ? (
+            <div className="space-y-2">
+              {myPoints.slice(0, 5).map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-b-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
+                      p.points > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {p.points > 0 ? '+' : ''}{p.points}
+                    </span>
+                    <span className="text-sm text-gray-700">{p.description || p.activity_type}</span>
+                  </div>
+                  <span className="text-xs text-gray-400">
+                    {new Date(p.created_at).toLocaleDateString('ko-KR')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">아직 포인트 내역이 없습니다.</p>
+          )}
         </div>
       </div>
 

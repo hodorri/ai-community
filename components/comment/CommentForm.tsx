@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import { createClient } from '@/lib/supabase/client'
+import { earnPoints } from '@/lib/points'
 import Image from 'next/image'
 
 interface CommentFormProps {
@@ -54,8 +55,12 @@ export default function CommentForm({ postId, parentId = null, onCommentAdded, o
         throw new Error(commentError.message || '댓글 작성에 실패했습니다.')
       }
 
+      // 포인트 자동 적립
+      if (newComment) {
+        await earnPoints(supabase, user.id, 'comment_create', newComment.id, '댓글 작성')
+      }
+
       setContent('')
-      // 댓글 목록 새로고침 (프로필 정보는 CommentSection에서 가져옴)
       onCommentAdded()
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.')

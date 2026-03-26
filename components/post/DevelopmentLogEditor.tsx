@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import RichTextEditor from './RichTextEditor'
 import ImageUpload from './ImageUpload'
+import { earnPoints } from '@/lib/points'
 import type { Post } from '@/lib/types/database'
 
 interface DevelopmentLogEditorProps {
@@ -195,8 +196,10 @@ export default function DevelopmentLogEditor({ post }: DevelopmentLogEditorProps
 
         // 게시글 저장 성공 시 임시 저장 데이터 삭제
         localStorage.removeItem(DRAFT_STORAGE_KEY)
-        
-        // 성공 메시지 표시
+
+        // 포인트 자동 적��
+        await earnPoints(supabase, user.id, 'post_create', newPost.id, '개발일지 작성')
+
         console.log('게시글 작성 성공:', newPost)
         
         // 게시글 상세 페이지로 이동
