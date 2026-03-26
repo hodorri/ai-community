@@ -14,7 +14,7 @@ import PointsManager from '@/components/admin/PointsManager'
 import EngineerManager from '@/components/admin/EngineerManager'
 import BadgeManager from '@/components/admin/BadgeManager'
 
-type TabType = 'users' | 'cops' | 'guide' | 'points' | 'engineers' | 'badges'
+type TabType = 'users' | 'cops' | 'guide' | 'points' | 'engineers' | 'badges' | 'contacts'
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
@@ -888,10 +888,20 @@ export default function AdminPage() {
             >
               뱃지 관리
             </button>
+            <button
+              onClick={() => setActiveTab('contacts')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'contacts'
+                  ? 'border-ok-primary text-ok-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              문의 관리
+            </button>
           </div>
         </div>
 
-        {activeTab !== 'guide' && activeTab !== 'points' && activeTab !== 'engineers' && activeTab !== 'badges' && (
+        {activeTab !== 'guide' && activeTab !== 'points' && activeTab !== 'engineers' && activeTab !== 'badges' && activeTab !== 'contacts' && (
           <>
             <p className="text-gray-600 mb-4">
               {activeTab === 'users' ? '사용자 관리' : 'CoP 관리'}
@@ -1573,6 +1583,8 @@ export default function AdminPage() {
         <EngineerManager />
       ) : activeTab === 'badges' ? (
         <BadgeManager />
+      ) : activeTab === 'contacts' ? (
+        <ContactsManager supabase={supabase} />
       ) : null}
 
       {/* 비밀번호 초기화 모달 */}
@@ -1813,6 +1825,69 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ContactsManager({ supabase }: { supabase: any }) {
+  const [contacts, setContacts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchContacts()
+  }, [])
+
+  async function fetchContacts() {
+    setLoading(true)
+    const { data } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setContacts(data || [])
+    setLoading(false)
+  }
+
+  async function toggleResolved(id: string, current: boolean) {
+    await supabase.from('contacts').update({ is_resolved: !current }).eq('id', id)
+    fetchContacts()
+  }
+
+  if (loading) return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+
+  return (
+    <div>
+      <p className="text-gray-600 mb-4">접수된 문의 내역입니다.</p>
+      {contacts.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200 text-gray-500">접수된 문의가 없습니다.</div>
+      ) : (
+        <div className="space-y-4">
+          {contacts.map((c: any) => (
+            <div key={c.id} className={`bg-white rounded-2xl shadow-sm border p-5 ${c.is_resolved ? 'border-green-200 bg-green-50/30' : 'border-gray-200'}`}>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900">{c.name}</span>
+                    {c.employee_number && <span className="text-xs text-gray-500">({c.employee_number})</span>}
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.is_resolved ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {c.is_resolved ? '처리완료' : '미처리'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    연락처: {c.contact_info} | {new Date(c.created_at).toLocaleString('ko-KR')}
+                  </div>
+                </div>
+                <button
+                  onClick={() => toggleResolved(c.id, c.is_resolved)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${c.is_resolved ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                >
+                  {c.is_resolved ? '미처리로 변경' : '처리완료'}
+                </button>
+              </div>
+              <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-xl p-4">{c.content}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
