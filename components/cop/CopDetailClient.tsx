@@ -486,18 +486,18 @@ export default function CopDetailClient({ cop }: CopDetailClientProps) {
 
       {/* 멤버 정보 및 가입 버튼 */}
       <div className="mb-8 pb-8 border-b">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3 sm:gap-6">
             <div>
-              <div className="text-sm text-gray-600 mb-1">멤버 정원</div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">멤버 정원</div>
+              <div className="text-lg sm:text-2xl font-bold text-gray-900">
                 {currentMembers}명 / {cop.max_members}명
               </div>
             </div>
             <div className="h-12 w-px bg-gray-200" />
             <div>
-              <div className="text-sm text-gray-600 mb-1">모집 현황</div>
-              <div className="text-lg font-semibold text-gray-900">
+              <div className="text-xs sm:text-sm text-gray-600 mb-1">모집 현황</div>
+              <div className="text-base sm:text-lg font-semibold text-gray-900">
                 {Math.round((currentMembers / cop.max_members) * 100)}% 모집됨
               </div>
             </div>

@@ -1212,10 +1212,10 @@ function ActivityContent() {
 
       {/* 프로필 정보 카드 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           {/* 프로필 사진 */}
           {avatarUrl ? (
-            <div className="relative w-20 h-20 rounded-full overflow-hidden flex-shrink-0">
+            <div className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-full overflow-hidden flex-shrink-0">
               <Image
                 src={avatarUrl}
                 alt={displayName}
@@ -1225,7 +1225,7 @@ function ActivityContent() {
               />
             </div>
           ) : (
-            <div className="w-20 h-20 rounded-full bg-ok-primary flex items-center justify-center text-white font-bold text-2xl flex-shrink-0">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full bg-ok-primary flex items-center justify-center text-white font-bold text-xl sm:text-2xl flex-shrink-0">
               {initial}
             </div>
           )}
@@ -1246,7 +1246,7 @@ function ActivityContent() {
           {/* 프로필 수정 버튼 */}
           <Link
             href="/profile"
-            className="px-4 py-2 bg-ok-primary text-white rounded-lg text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-ok-primary text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg whitespace-nowrap"
           >
             프로필 수정
           </Link>

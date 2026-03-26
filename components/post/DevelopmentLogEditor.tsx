@@ -308,11 +308,11 @@ export default function DevelopmentLogEditor({ post }: DevelopmentLogEditorProps
         </div>
       )}
 
-      <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+      <div className="flex justify-end gap-2 sm:gap-4 pt-6 border-t border-gray-200 flex-wrap sm:flex-nowrap">
         <button
           type="button"
           onClick={() => router.back()}
-          className="px-6 py-3 border-2 border-gray-300 rounded-xl hover:bg-gray-50 font-semibold transition-colors"
+          className="px-3 sm:px-6 py-2 sm:py-3 text-sm sm:text-base border-2 border-gray-300 rounded-xl hover:bg-gray-50 font-semibold transition-colors"
         >
           취소
         </button>
@@ -321,7 +321,7 @@ export default function DevelopmentLogEditor({ post }: DevelopmentLogEditorProps
             type="button"
             onClick={handleSaveDraft}
             disabled={savingDraft || loading}
-            className="px-6 py-3 border-2 border-ok-primary text-ok-primary rounded-xl hover:bg-ok-primary/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
+            className="px-3 sm:px-6 py-2 sm:py-3 text-sm sm:text-base border-2 border-ok-primary text-ok-primary rounded-xl hover:bg-ok-primary/10 disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors"
           >
             {savingDraft ? '저장 중...' : '임시 저장하기'}
           </button>
@@ -329,7 +329,7 @@ export default function DevelopmentLogEditor({ post }: DevelopmentLogEditorProps
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-3 bg-ok-primary text-white rounded-xl hover:bg-ok-dark disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors shadow-md hover:shadow-lg"
+          className="px-3 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-ok-primary text-white rounded-xl hover:bg-ok-dark disabled:opacity-50 disabled:cursor-not-allowed font-semibold transition-colors shadow-md hover:shadow-lg"
         >
           {loading ? '저장 중...' : post ? '수정하기' : '작성하기'}
         </button>

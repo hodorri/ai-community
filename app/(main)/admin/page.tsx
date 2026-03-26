@@ -826,11 +826,11 @@ export default function AdminPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">관리자 대시보드</h1>
         
         {/* 메인 탭 (사용자 관리 / CoP 관리 / 뉴스 관리) */}
-        <div className="flex items-center justify-between mb-6 border-b border-gray-200">
-          <div className="flex gap-2">
+        <div className="overflow-x-auto mb-6 border-b border-gray-200">
+          <div className="flex gap-2 min-w-max">
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -840,7 +840,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('cops')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'cops'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -850,7 +850,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('guide')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'guide'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -860,7 +860,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('points')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'points'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -870,7 +870,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('engineers')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'engineers'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -880,7 +880,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('badges')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'badges'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -890,7 +890,7 @@ export default function AdminPage() {
             </button>
             <button
               onClick={() => setActiveTab('contacts')}
-              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === 'contacts'
                   ? 'border-ok-primary text-ok-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -908,8 +908,8 @@ export default function AdminPage() {
             </p>
             
             {/* 필터 탭 */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex gap-2">
+            <div className="flex items-center justify-between mb-4 gap-2 flex-wrap sm:flex-nowrap">
+              <div className="flex gap-2 overflow-x-auto flex-nowrap">
               <button
                 onClick={() => {
                   setFilterStatus('all')
@@ -968,7 +968,7 @@ export default function AdminPage() {
               </button>
               </div>
               {activeTab === 'users' && (
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   <button
                     onClick={() => {
                       if (selectedUsers.size === 0) {
@@ -993,7 +993,7 @@ export default function AdminPage() {
                       }
                     }}
                     disabled={selectedUsers.size === 0 || selectedUsers.size > 1}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       selectedUsers.size === 0 || selectedUsers.size > 1
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -1004,7 +1004,7 @@ export default function AdminPage() {
                   <button
                     onClick={handleDeleteUsers}
                     disabled={deletingUsers || selectedUsers.size === 0}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       deletingUsers || selectedUsers.size === 0
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-red-500 text-white hover:bg-red-600'
@@ -1024,7 +1024,7 @@ export default function AdminPage() {
                       }
                     }}
                     disabled={selectedUsers.size !== 1}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       selectedUsers.size !== 1
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-yellow-500 text-white hover:bg-yellow-600'
@@ -1035,7 +1035,7 @@ export default function AdminPage() {
                 </div>
               )}
               {activeTab === 'cops' && (
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   <button
                     onClick={() => {
                       if (selectedCops.size === 0) {
@@ -1059,7 +1059,7 @@ export default function AdminPage() {
                       }
                     }}
                     disabled={selectedCops.size === 0 || selectedCops.size > 1}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       selectedCops.size === 0 || selectedCops.size > 1
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -1070,7 +1070,7 @@ export default function AdminPage() {
                   <button
                     onClick={handleDeleteCops}
                     disabled={deletingCops || selectedCops.size === 0}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       deletingCops || selectedCops.size === 0
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-red-500 text-white hover:bg-red-600'

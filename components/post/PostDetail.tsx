@@ -172,7 +172,7 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
           </svg>
           <span className="text-sm">목록으로</span>
         </button>
-        <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+        <div className="absolute left-1/2 transform -translate-x-1/2 hidden sm:flex items-center gap-2">
           {isPinned && (
             <span className="text-yellow-500 text-lg" title="고정된 게시물">📌</span>
           )}
