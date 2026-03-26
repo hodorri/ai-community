@@ -640,6 +640,7 @@ function ActivityContent() {
   const { user } = useAuth()
   const { profile } = useProfile()
   const [activities, setActivities] = useState<any[]>([])
+  const [myCops, setMyCops] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -648,31 +649,63 @@ function ActivityContent() {
       return
     }
 
-    const userId = user.id // user가 null이 아님을 보장한 후 id 저장
+    const userId = user.id
 
     async function fetchMyActivities() {
       try {
         const { createClient } = await import('@/lib/supabase/client')
         const supabase = createClient()
-        
+
         // 내가 작성한 게시글 조회
         const { data: postsData, error: postsError } = await supabase
           .from('posts')
           .select('*')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
-        
+
         if (postsError) throw postsError
-        
+
         // 내가 작성한 댓글 조회
         const { data: commentsData, error: commentsError } = await supabase
           .from('comments')
           .select('*, post_id')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
-        
+
         if (commentsError) throw commentsError
-        
+
+        // 내 CoP 가입 내역 조회
+        const { data: copMemberships, error: copError } = await supabase
+          .from('cop_members')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+
+        if (!copError && copMemberships) {
+          const copsWithDetails = await Promise.all(
+            copMemberships.map(async (membership: any) => {
+              const { data: copData } = await supabase
+                .from('cops')
+                .select('id, name, description, image_url, status, max_members')
+                .eq('id', membership.cop_id)
+                .single()
+
+              const { count: memberCount } = await supabase
+                .from('cop_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('cop_id', membership.cop_id)
+                .eq('status', 'approved')
+
+              return {
+                ...membership,
+                cop: copData,
+                member_count: memberCount || 0,
+              }
+            })
+          )
+          setMyCops(copsWithDetails.filter(c => c.cop))
+        }
+
         // 게시글 데이터 가공
         const postsWithMetadata = await Promise.all(
           (postsData || []).map(async (post: any) => {
@@ -711,17 +744,16 @@ function ActivityContent() {
             }
           })
         )
-        
+
         // 댓글 데이터 가공
         const commentsWithMetadata = await Promise.all(
           (commentsData || []).map(async (comment: any) => {
-            // 댓글이 달린 게시글 정보 가져오기
             const { data: postData } = await supabase
               .from('posts')
               .select('id, title, user_id')
               .eq('id', comment.post_id)
               .single()
-            
+
             const [profileResult, postProfileResult] = await Promise.all([
               supabase
                 .from('profiles')
@@ -755,12 +787,11 @@ function ActivityContent() {
             }
           })
         )
-        
-        // 게시글과 댓글을 합쳐서 시간순으로 정렬
+
         const allActivities = [...postsWithMetadata, ...commentsWithMetadata]
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 50) // 최대 50개만 표시
-        
+          .slice(0, 50)
+
         setActivities(allActivities)
       } catch (error) {
         console.error('나의 활동 조회 오류:', error)
@@ -816,7 +847,7 @@ function ActivityContent() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-3">나의 활동</h1>
         <p className="text-gray-600 text-base">
-          내가 작성한 게시글과 댓글을 확인할 수 있습니다.
+          내가 작성한 게시글, 댓글, AI CoP 가입 내역을 확인할 수 있습니다.
         </p>
       </div>
 
@@ -862,6 +893,60 @@ function ActivityContent() {
           </Link>
         </div>
       </div>
+
+      {/* AI CoP 가입 내역 */}
+      {myCops.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">AI CoP 가입 내역</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {myCops.map((membership: any) => (
+              <Link
+                key={membership.id}
+                href={`/cop/${membership.cop_id}`}
+                className="block bg-white rounded-2xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start gap-3">
+                  {membership.cop?.image_url ? (
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                      <Image
+                        src={membership.cop.image_url}
+                        alt={membership.cop.name}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-lg flex-shrink-0">
+                      {membership.cop?.name?.charAt(0) || 'C'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">{membership.cop?.name}</h3>
+                    {membership.cop?.description && (
+                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{membership.cop.description}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        membership.status === 'approved'
+                          ? 'bg-green-100 text-green-700'
+                          : membership.status === 'pending'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}>
+                        {membership.status === 'approved' ? '승인됨' : membership.status === 'pending' ? '대기중' : '거절됨'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {membership.member_count}/{membership.cop?.max_members}명
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 좌우 분할 레이아웃 */}
       <div className="flex flex-col md:flex-row gap-6">
