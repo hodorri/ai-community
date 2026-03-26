@@ -6,6 +6,58 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
+function getSupabaseAdmin() {
+  const key = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY
+  return createClient(SUPABASE_URL, key, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  })
+}
+
+export async function GET() {
+  try {
+    const supabase = getSupabaseAdmin()
+    const { data, error } = await supabase
+      .from('contacts')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('문의 조회 오류:', error)
+      return NextResponse.json({ error: '문의 조회에 실패했습니다.' }, { status: 500 })
+    }
+
+    return NextResponse.json({ contacts: data || [] })
+  } catch (error) {
+    console.error('문의 조회 오류:', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { id, is_resolved } = await request.json()
+    if (!id) {
+      return NextResponse.json({ error: 'id가 필요합니다.' }, { status: 400 })
+    }
+
+    const supabase = getSupabaseAdmin()
+    const { error } = await supabase
+      .from('contacts')
+      .update({ is_resolved })
+      .eq('id', id)
+
+    if (error) {
+      console.error('문의 상태 변경 오류:', error)
+      return NextResponse.json({ error: '상태 변경에 실패했습니다.' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('문의 상태 변경 오류:', error)
+    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -16,10 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // DB에 문의 저장 (서비스 롤 키 또는 anon 키로)
-    const key = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY
-    const supabase = createClient(SUPABASE_URL, key, {
-      auth: { autoRefreshToken: false, persistSession: false }
-    })
+    const supabase = getSupabaseAdmin()
 
     const { error: dbError } = await supabase
       .from('contacts')
@@ -32,6 +81,10 @@ export async function POST(request: NextRequest) {
 
     if (dbError) {
       console.error('문의 저장 오류:', dbError)
+      return NextResponse.json(
+        { error: '문의 저장에 실패했습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 500 }
+      )
     }
 
     // 이메일 발송 시도 (실패해도 DB에는 저장됨)

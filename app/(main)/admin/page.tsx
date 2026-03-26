@@ -1584,7 +1584,7 @@ export default function AdminPage() {
       ) : activeTab === 'badges' ? (
         <BadgeManager />
       ) : activeTab === 'contacts' ? (
-        <ContactsManager supabase={supabase} />
+        <ContactsManager />
       ) : null}
 
       {/* 비밀번호 초기화 모달 */}
@@ -1831,7 +1831,7 @@ export default function AdminPage() {
   )
 }
 
-function ContactsManager({ supabase }: { supabase: any }) {
+function ContactsManager() {
   const [contacts, setContacts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -1841,16 +1841,22 @@ function ContactsManager({ supabase }: { supabase: any }) {
 
   async function fetchContacts() {
     setLoading(true)
-    const { data } = await supabase
-      .from('contacts')
-      .select('*')
-      .order('created_at', { ascending: false })
-    setContacts(data || [])
+    try {
+      const res = await fetch('/api/contact')
+      const data = await res.json()
+      setContacts(data.contacts || [])
+    } catch {
+      setContacts([])
+    }
     setLoading(false)
   }
 
   async function toggleResolved(id: string, current: boolean) {
-    await supabase.from('contacts').update({ is_resolved: !current }).eq('id', id)
+    await fetch('/api/contact', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_resolved: !current }),
+    })
     fetchContacts()
   }
 
