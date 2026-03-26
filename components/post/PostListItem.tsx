@@ -90,10 +90,10 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
   const showAvatar = linkPrefix !== '/cases'
 
   const articleContent = (
-    <article className={`flex items-start gap-4 py-4 px-4 border-b border-gray-200 ${noLink ? '' : 'hover:bg-gray-50 transition-colors cursor-pointer'}`}>
-        {/* 썸네일 - 게시글 이미지가 있으면 게시글 이미지, 없으면 작성자 프로필 사진 (AI 활용사례 제외) */}
+    <article className={`flex items-start gap-2 sm:gap-4 py-3 sm:py-4 px-3 sm:px-4 border-b border-gray-200 ${noLink ? '' : 'hover:bg-gray-50 transition-colors cursor-pointer'}`}>
+        {/* 썸네일 */}
         {showAvatar && (
-          <div className="flex-shrink-0 w-20 h-20 bg-gray-200 rounded-lg overflow-hidden">
+          <div className="flex-shrink-0 w-12 h-12 sm:w-20 sm:h-20 bg-gray-200 rounded-lg overflow-hidden">
             {previewImage ? (
               <Image
                 src={previewImage}
@@ -126,14 +126,14 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
             {post.is_pinned && (
               <span className="text-yellow-500" title="고정된 게시글">📌</span>
             )}
-            <h2 className="text-lg font-bold text-gray-900 line-clamp-1 hover:text-ok-primary transition-colors">
+            <h2 className="text-sm sm:text-lg font-bold text-gray-900 line-clamp-1 hover:text-ok-primary transition-colors">
               {post.title}
             </h2>
           </div>
-          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+          <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2 hidden sm:block">
             {contentPreview || '내용이 없습니다.'}
           </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs text-gray-500 flex-wrap">
             {/* AI 활용사례일 때는 "회사 소속 이름 직책 · AI Engineer [기수] · 시간" 형태로 표시 */}
             {linkPrefix === '/cases' ? (
               <>
@@ -182,7 +182,7 @@ export default function PostListItem({ post, linkPrefix = '/post', noLink = fals
         </div>
 
         {/* 좋아요/댓글 수 */}
-        <div className="flex-shrink-0 flex items-center gap-4 text-sm text-gray-500 ml-4">
+        <div className="flex-shrink-0 flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 ml-1 sm:ml-4">
           <div className="flex items-center gap-1">
             <svg
               className="w-4 h-4 text-red-500"
