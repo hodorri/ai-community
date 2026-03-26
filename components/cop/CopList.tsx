@@ -8,6 +8,13 @@ import type { CoP } from '@/lib/types/database'
 
 interface CopWithMembers extends CoP {
   current_members?: number
+  owner?: {
+    name?: string
+    nickname?: string
+    avatar_url?: string
+    company?: string
+    team?: string
+  } | null
 }
 
 interface CopListProps {
@@ -43,17 +50,25 @@ export default function CopList({ limit }: CopListProps = {}) {
           return
         }
 
-        // 각 CoP의 현재 멤버 수 조회
+        // 각 CoP의 현재 멤버 수 + 개설자 정보 조회
         const copsWithMembers = await Promise.all(
           copsData.map(async (cop) => {
-            const { count } = await supabase
-              .from('cop_members')
-              .select('*', { count: 'exact', head: true })
-              .eq('cop_id', cop.id)
+            const [memberResult, profileResult] = await Promise.all([
+              supabase
+                .from('cop_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('cop_id', cop.id),
+              supabase
+                .from('profiles')
+                .select('name, nickname, avatar_url, company, team')
+                .eq('id', cop.user_id)
+                .single(),
+            ])
 
             return {
               ...cop,
-              current_members: count || 0,
+              current_members: memberResult.count || 0,
+              owner: profileResult.data || null,
             } as CopWithMembers
           })
         )
@@ -121,8 +136,25 @@ export default function CopList({ limit }: CopListProps = {}) {
                 {cop.description}
               </p>
             )}
+            {/* 개설자 정보 */}
+            {cop.owner && (
+              <div className="flex items-center gap-2 mb-3">
+                {cop.owner.avatar_url ? (
+                  <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                    <Image src={cop.owner.avatar_url} alt="" fill className="object-cover" sizes="24px" />
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold text-xs flex-shrink-0">
+                    {(cop.owner.nickname || cop.owner.name || '?').charAt(0)}
+                  </div>
+                )}
+                <span className="text-xs text-gray-500">
+                  개설자: {cop.owner.nickname || cop.owner.name || '알 수 없음'}
+                  {cop.owner.company && ` · ${cop.owner.company}`}
+                </span>
+              </div>
+            )}
             <div className="flex flex-col gap-1 text-xs text-gray-500">
-              <span>멤버 정원: {cop.max_members}명</span>
               <span>모집현황: {cop.current_members || 0}명 / {cop.max_members}명</span>
             </div>
           </div>

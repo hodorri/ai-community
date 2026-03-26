@@ -15,7 +15,7 @@ import NewsContent from '@/components/news/NewsContent'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
-type TabType = 'all' | 'notice' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'notice' | 'diary' | 'news' | 'cases' | 'study' | 'cop-log' | 'engineer' | 'activity'
 
 function DashboardContent() {
   const { user, loading: authLoading } = useAuth()
@@ -25,7 +25,7 @@ function DashboardContent() {
   
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['all', 'notice', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
+    if (tabParam && ['all', 'notice', 'diary', 'news', 'cases', 'study', 'cop-log', 'engineer', 'activity'].includes(tabParam)) {
       setActiveTab(tabParam as TabType)
     } else if (user) {
       setActiveTab('all')
@@ -98,6 +98,8 @@ function DashboardContent() {
         {activeTab === 'diary' && <DiaryContent />}
         {activeTab === 'news' && <NewsContent />}
         {activeTab === 'study' && <StudyContent showCreateButton={true} showTitle={true} showDescription={true} />}
+        {activeTab === 'cop-log' && <CopLogContent />}
+        {activeTab === 'engineer' && <EngineerContent />}
         {activeTab === 'activity' && <ActivityContent />}
       </div>
     </div>
@@ -564,6 +566,338 @@ function DiarySummary() {
           {posts.map((post: any) => (
             <PostListItem key={post.id} post={post} />
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// AI Engineer 컴포넌트
+function EngineerContent() {
+  const { user } = useAuth()
+  const [engineers, setEngineers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedCohort, setSelectedCohort] = useState<string>('all')
+  const isAdmin = user?.email === ADMIN_EMAIL
+
+  useEffect(() => {
+    async function fetchEngineers() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        const { data, error } = await supabase
+          .from('ai_engineers')
+          .select('*')
+          .order('cohort', { ascending: true })
+          .order('name', { ascending: true })
+
+        if (error) throw error
+        setEngineers(data || [])
+      } catch (error) {
+        console.error('AI Engineer 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchEngineers()
+  }, [])
+
+  const cohorts = [...new Set(engineers.map(e => e.cohort))].sort()
+  const filtered = selectedCohort === 'all' ? engineers : engineers.filter(e => e.cohort === selectedCohort)
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">AI Engineer</h1>
+        <p className="text-gray-600 text-base">
+          OK금융그룹 AI Engineer 양성 프로그램 수료생 명단입니다.
+        </p>
+      </div>
+
+      {/* 기수 필터 */}
+      <div className="flex items-center gap-2 mb-6">
+        <button
+          onClick={() => setSelectedCohort('all')}
+          className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+            selectedCohort === 'all'
+              ? 'bg-ok-primary text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          전체 ({engineers.length})
+        </button>
+        {cohorts.map(c => (
+          <button
+            key={c}
+            onClick={() => setSelectedCohort(c)}
+            className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
+              selectedCohort === c
+                ? 'bg-ok-primary text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {c} ({engineers.filter(e => e.cohort === c).length})
+          </button>
+        ))}
+      </div>
+
+      {/* 카드 그리드 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        {filtered.map((eng: any) => {
+          const initial = eng.name?.charAt(0) || '?'
+          const colors = [
+            'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500',
+            'bg-indigo-500', 'bg-teal-500', 'bg-orange-500', 'bg-cyan-500',
+          ]
+          const colorIdx = eng.name ? eng.name.charCodeAt(0) % colors.length : 0
+
+          return (
+            <div
+              key={eng.id}
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow text-center"
+            >
+              {/* 사진 or 이니셜 */}
+              {eng.photo_url ? (
+                <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden mb-3">
+                  <Image src={eng.photo_url} alt={eng.name} fill className="object-cover" sizes="64px" />
+                </div>
+              ) : (
+                <div className={`w-16 h-16 mx-auto rounded-full ${colors[colorIdx]} flex items-center justify-center text-white font-bold text-xl mb-3`}>
+                  {initial}
+                </div>
+              )}
+
+              {/* 이름 */}
+              <h3 className="font-bold text-gray-900 text-sm">{eng.name}</h3>
+
+              {/* 기수 뱃지 */}
+              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-ok-primary/10 text-ok-primary">
+                AI Engineer {eng.cohort}
+              </span>
+
+              {/* 회사 소속 */}
+              <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                {eng.company && <div>{eng.company}</div>}
+                {eng.department && <div>{eng.department}</div>}
+                {eng.title && <div>{eng.title}{eng.position ? ` / ${eng.position}` : ''}</div>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+          <p className="text-gray-500">등록된 AI Engineer가 없습니다.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// CoP 활동일지 컴포넌트
+function CopLogContent() {
+  const { user } = useAuth()
+  const [cops, setCops] = useState<any[]>([])
+  const [selectedCopId, setSelectedCopId] = useState<string | null>(null)
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [logsLoading, setLogsLoading] = useState(false)
+
+  useEffect(() => {
+    async function fetchCops() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        const { data, error } = await supabase
+          .from('cops')
+          .select('*')
+          .eq('status', 'approved')
+          .order('name', { ascending: true })
+
+        if (error) throw error
+
+        // 각 CoP의 활동일지 수 조회
+        const copsWithLogCount = await Promise.all(
+          (data || []).map(async (cop: any) => {
+            const { count } = await supabase
+              .from('cop_logs')
+              .select('*', { count: 'exact', head: true })
+              .eq('cop_id', cop.id)
+
+            const { data: ownerData } = await supabase
+              .from('profiles')
+              .select('name, nickname')
+              .eq('id', cop.user_id)
+              .single()
+
+            return { ...cop, log_count: count || 0, owner: ownerData }
+          })
+        )
+
+        setCops(copsWithLogCount)
+      } catch (error) {
+        console.error('CoP 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCops()
+  }, [])
+
+  async function fetchLogs(copId: string) {
+    setSelectedCopId(copId)
+    setLogsLoading(true)
+    try {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+
+      const { data, error } = await supabase
+        .from('cop_logs')
+        .select('*')
+        .eq('cop_id', copId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const logsWithProfile = await Promise.all(
+        (data || []).map(async (log: any) => {
+          const [profileResult, likesResult, commentsResult] = await Promise.all([
+            supabase.from('profiles')
+              .select('email, name, nickname, avatar_url, company, team, position')
+              .eq('id', log.user_id)
+              .single(),
+            supabase.from('cop_log_likes')
+              .select('*', { count: 'exact', head: true })
+              .eq('cop_log_id', log.id),
+            supabase.from('cop_log_comments')
+              .select('*', { count: 'exact', head: true })
+              .eq('cop_log_id', log.id),
+          ])
+          return {
+            ...log,
+            user: profileResult.data || {},
+            likes_count: likesResult.count || 0,
+            comments_count: commentsResult.count || 0,
+          }
+        })
+      )
+
+      setLogs(logsWithProfile)
+    } catch (error) {
+      console.error('활동일지 조회 오류:', error)
+    } finally {
+      setLogsLoading(false)
+    }
+  }
+
+  const selectedCop = cops.find(c => c.id === selectedCopId)
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">CoP 활동일지</h1>
+        <p className="text-gray-600 text-base">
+          각 CoP별 활동일지를 확인하고 작성할 수 있습니다.
+        </p>
+      </div>
+
+      {!selectedCopId ? (
+        /* CoP 폴더 목록 */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {cops.map((cop: any) => (
+            <button
+              key={cop.id}
+              onClick={() => fetchLogs(cop.id)}
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow text-left"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 text-2xl flex-shrink-0">
+                  📁
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-gray-900 truncate">{cop.name}</h3>
+                  <p className="text-xs text-gray-500">
+                    개설자: {cop.owner?.nickname || cop.owner?.name || '알 수 없음'}
+                  </p>
+                </div>
+              </div>
+              {cop.description && (
+                <p className="text-sm text-gray-500 line-clamp-2 mb-3">{cop.description}</p>
+              )}
+              <div className="flex items-center justify-between text-xs text-gray-400">
+                <span>활동일지 {cop.log_count}건</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          ))}
+          {cops.length === 0 && (
+            <div className="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+              <p className="text-gray-500">승인된 CoP가 없습니다.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* 선택된 CoP의 활동일지 목록 */
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setSelectedCopId(null); setLogs([]) }}
+                className="flex items-center gap-1 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{selectedCop?.name}</h2>
+                <p className="text-sm text-gray-500">활동일지 {logs.length}건</p>
+              </div>
+            </div>
+            {user && (
+              <Link
+                href={`/cop-log/new?copId=${selectedCopId}`}
+                className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+              >
+                활동일지 작성
+              </Link>
+            )}
+          </div>
+
+          {logsLoading ? (
+            <div className="text-center py-8 text-gray-500">로딩 중...</div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+              <p className="text-gray-500 mb-4">아직 활동일지가 없습니다.</p>
+              {user && (
+                <Link
+                  href={`/cop-log/new?copId=${selectedCopId}`}
+                  className="inline-block bg-ok-primary text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors"
+                >
+                  첫 활동일지 작성하기
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              {logs.map((log: any) => (
+                <PostListItem key={log.id} post={log} linkPrefix="/cop-log" />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

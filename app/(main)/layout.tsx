@@ -7,7 +7,7 @@ import ApprovalBanner from '@/components/ApprovalBanner'
 import TabNavigation from '@/components/TabNavigation'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'notice' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'notice' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'cop-log' | 'engineer' | 'activity'
 
 function MainLayoutContent({
   children,
@@ -39,12 +39,17 @@ function MainLayoutContent({
     // 대시보드 페이지인 경우
     if (pathname === '/dashboard') {
       const tabParam = searchParams.get('tab')
-      if (tabParam && ['all', 'notice', 'guide', 'greeting', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
+      if (tabParam && ['all', 'notice', 'guide', 'greeting', 'diary', 'news', 'cases', 'study', 'cop-log', 'engineer', 'activity'].includes(tabParam)) {
         return tabParam as TabType
       }
       return user ? 'all' : 'diary'
     }
     
+    // CoP 활동일지 페이지인 경우
+    if (pathname?.startsWith('/cop-log/') || pathname === '/cop-log') {
+      return 'cop-log'
+    }
+
     // 공지사항 상세 페이지인 경우
     if (pathname?.startsWith('/notice/')) {
       return 'notice'
@@ -76,6 +81,10 @@ function MainLayoutContent({
       router.push('/dashboard')
     } else if (tab === 'notice') {
       router.push(`/dashboard?tab=${tab}`)
+    } else if (tab === 'cop-log') {
+      router.push(`/dashboard?tab=${tab}`)
+    } else if (tab === 'engineer') {
+      router.push(`/dashboard?tab=${tab}`)
     } else if (tab === 'guide') {
       router.push('/guide')
     } else if (tab === 'greeting') {
@@ -92,7 +101,8 @@ function MainLayoutContent({
                                    !pathname?.startsWith('/profile') &&
                                    pathname !== '/post/new' &&
                                    pathname !== '/news/new' &&
-                                   pathname !== '/notice/new'
+                                   pathname !== '/notice/new' &&
+                                   pathname !== '/cop-log/new'
 
   return (
     <>

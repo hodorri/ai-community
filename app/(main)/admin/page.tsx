@@ -11,8 +11,9 @@ import Image from 'next/image'
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@example.com'
 
 import PointsManager from '@/components/admin/PointsManager'
+import EngineerManager from '@/components/admin/EngineerManager'
 
-type TabType = 'users' | 'cops' | 'guide' | 'points'
+type TabType = 'users' | 'cops' | 'guide' | 'points' | 'engineers'
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
@@ -859,10 +860,20 @@ export default function AdminPage() {
             >
               포인트 관리
             </button>
+            <button
+              onClick={() => setActiveTab('engineers')}
+              className={`px-6 py-3 text-sm font-medium transition-colors border-b-2 ${
+                activeTab === 'engineers'
+                  ? 'border-ok-primary text-ok-primary'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              AI Engineer
+            </button>
           </div>
         </div>
 
-        {activeTab !== 'guide' && activeTab !== 'points' && (
+        {activeTab !== 'guide' && activeTab !== 'points' && activeTab !== 'engineers' && (
           <>
             <p className="text-gray-600 mb-4">
               {activeTab === 'users' ? '사용자 관리' : 'CoP 관리'}
@@ -1520,6 +1531,8 @@ export default function AdminPage() {
         </div>
       ) : activeTab === 'points' ? (
         <PointsManager />
+      ) : activeTab === 'engineers' ? (
+        <EngineerManager />
       ) : null}
 
       {/* 수정 모달 */}
