@@ -1,0 +1,17 @@
+{
+  "name": "It's OKAI - AI Engineer Community",
+  "short_name": "OKAI",
+  "description": "OK금융그룹 AI Engineer 커뮤니티",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#E8461E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

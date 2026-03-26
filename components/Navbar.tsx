@@ -142,12 +142,12 @@ export default function Navbar() {
   return (
     <nav className="bg-white shadow-md border-b border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* 첫 번째 줄: OKAI 가이드 (좌측) | AI Inspiration (우측) */}
-        <div className="flex justify-between items-center py-2 border-b border-gray-100">
-          <div className="flex items-center gap-4">
+        {/* 첫 번째 줄: OKAI 가이드 (좌측) | AI Inspiration (우측) - 모바일에서 축소 */}
+        <div className="flex justify-between items-center py-1.5 sm:py-2 border-b border-gray-100">
+          <div className="flex items-center gap-2 sm:gap-4">
             <Link
               href="/guide"
-              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium"
+              className="text-xs sm:text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium"
             >
               OKAI 가이드
             </Link>
@@ -155,18 +155,18 @@ export default function Navbar() {
               href="https://okfngroup.ubob.com/Account/Login"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium"
+              className="text-xs sm:text-sm text-gray-600 hover:text-ok-primary transition-colors font-medium hidden sm:inline"
             >
               OK학당
             </Link>
           </div>
           <button
             onClick={() => setShowAIInspiration(true)}
-            className="text-sm text-gray-600 hover:text-ok-primary transition-colors flex items-center gap-1 font-medium"
+            className="text-xs sm:text-sm text-gray-600 hover:text-ok-primary transition-colors flex items-center gap-1 font-medium"
             title="오늘의 AI Inspiration"
           >
             <span>💡</span>
-            <span>AI Inspiration</span>
+            <span className="hidden sm:inline">AI Inspiration</span>
           </button>
         </div>
 

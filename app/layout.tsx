@@ -9,6 +9,19 @@ export const metadata: Metadata = {
     shortcut: '/favicon.png',
     apple: '/favicon.png',
   },
+  manifest: '/manifest.json',
+  other: {
+    'mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#E8461E',
 };
 
 export default function RootLayout({

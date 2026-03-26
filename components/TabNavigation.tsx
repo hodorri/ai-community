@@ -32,15 +32,15 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
 
   return (
     <nav className="bg-white border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex space-x-8 h-full">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex items-center h-12 sm:h-16 min-w-max gap-1 sm:gap-6">
             {visibleTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
                 className={`
-                  px-1 border-b-2 font-medium text-sm transition-colors h-full flex items-center
+                  px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors h-full flex items-center whitespace-nowrap flex-shrink-0
                   ${
                     activeTab === tab.id
                       ? 'border-ok-primary text-ok-primary'
