@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -13,6 +15,8 @@ export async function PUT(
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    const isAdmin = user.email === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
     // 댓글 소유자 확인
     const { data: comment } = await supabase
       .from('comments')
@@ -20,7 +24,7 @@ export async function PUT(
       .eq('id', params.id)
       .single()
 
-    if (!comment || comment.user_id !== user.id) {
+    if (!comment || (comment.user_id !== user.id && !isAdmin)) {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
@@ -31,14 +35,19 @@ export async function PUT(
       return NextResponse.json({ error: '내용을 입력해주세요.' }, { status: 400 })
     }
 
-    const { data: updatedComment, error } = await supabase
+    let updateQuery = supabase
       .from('comments')
       .update({
         content: content.trim(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', params.id)
-      .eq('user_id', user.id) // 소유자 확인
+
+    if (!isAdmin) {
+      updateQuery = updateQuery.eq('user_id', user.id) // 소유자 확인
+    }
+
+    const { data: updatedComment, error } = await updateQuery
       .select()
       .single()
 
@@ -70,6 +79,8 @@ export async function DELETE(
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    const isAdmin = user.email === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
     // 댓글 소유자 확인
     const { data: comment } = await supabase
       .from('comments')
@@ -77,15 +88,20 @@ export async function DELETE(
       .eq('id', params.id)
       .single()
 
-    if (!comment || comment.user_id !== user.id) {
+    if (!comment || (comment.user_id !== user.id && !isAdmin)) {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
-    const { data: deletedComment, error } = await supabase
+    let deleteQuery = supabase
       .from('comments')
       .delete()
       .eq('id', params.id)
-      .eq('user_id', user.id) // 소유자 확인
+
+    if (!isAdmin) {
+      deleteQuery = deleteQuery.eq('user_id', user.id) // 소유자 확인
+    }
+
+    const { data: deletedComment, error } = await deleteQuery
       .select()
       .single()
 

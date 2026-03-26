@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { GreetingComment } from '@/lib/types/database'
 import GreetingCommentForm from './GreetingCommentForm'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 interface GreetingCommentListProps {
   comments: GreetingComment[]
   currentUserId?: string
@@ -51,6 +53,7 @@ function GreetingCommentItem({
   const [showMenu, setShowMenu] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const supabase = createClient()
 
   const displayName = comment.user?.nickname || comment.user?.name || comment.user?.email?.split('@')[0] || '익명'
@@ -58,6 +61,16 @@ function GreetingCommentItem({
   const initial = displayName.charAt(0).toUpperCase()
   const timeAgo = getTimeAgo(new Date(comment.created_at))
   const isOwner = currentUserId === comment.user_id
+  const isAdmin = currentUserEmail === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
+  // 현재 사용자 이메일 가져오기
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserEmail(user?.email || null)
+    }
+    fetchCurrentUser()
+  }, [supabase])
 
   // 좋아요 상태 및 개수 조회
   useEffect(() => {
@@ -148,14 +161,19 @@ function GreetingCommentItem({
     }
 
     try {
-      const { error } = await supabase
+      let updateQuery = supabase
         .from('greeting_comments')
         .update({
           content: editContent.trim(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', comment.id)
-        .eq('user_id', currentUserId)
+
+      if (!isAdmin) {
+        updateQuery = updateQuery.eq('user_id', currentUserId)
+      }
+
+      const { error } = await updateQuery
 
       if (error) {
         throw new Error(error.message || '댓글 수정에 실패했습니다.')
@@ -179,11 +197,16 @@ function GreetingCommentItem({
     }
 
     try {
-      const { error } = await supabase
+      let deleteQuery = supabase
         .from('greeting_comments')
         .delete()
         .eq('id', comment.id)
-        .eq('user_id', currentUserId)
+
+      if (!isAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', currentUserId)
+      }
+
+      const { error } = await deleteQuery
 
       if (error) {
         throw new Error(error.message || '댓글 삭제에 실패했습니다.')
@@ -293,7 +316,7 @@ function GreetingCommentItem({
                 >
                   답변
                 </button>
-                {isOwner && (
+                {(isOwner || isAdmin) && (
                   <div className="relative">
                     <button
                       onClick={() => setShowMenu(!showMenu)}

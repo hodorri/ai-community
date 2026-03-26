@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import DevelopmentLogEditor from './DevelopmentLogEditor'
 import type { Post } from '@/lib/types/database'
+import { createClient } from '@/lib/supabase/client'
+
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
 interface EditPostClientProps {
   post: Post
@@ -14,10 +17,23 @@ export default function EditPostClient({ post }: EditPostClientProps) {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    async function checkAdmin() {
+      if (!user) return
+      const supabase = createClient()
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser?.email === ADMIN_EMAIL && ADMIN_EMAIL !== '') {
+        setIsAdmin(true)
+      }
+    }
+    checkAdmin()
+  }, [user])
 
   useEffect(() => {
     if (!mounted || authLoading) return
@@ -27,12 +43,12 @@ export default function EditPostClient({ post }: EditPostClientProps) {
       return
     }
 
-    // 게시글 소유자 확인
-    if (post.user_id !== user.id) {
+    // 게시글 소유자 확인 (관리자는 통과)
+    if (post.user_id !== user.id && !isAdmin) {
       router.push(`/post/${post.id}`)
       return
     }
-  }, [user, authLoading, router, mounted, post])
+  }, [user, authLoading, router, mounted, post, isAdmin])
 
   if (!mounted || authLoading) {
     return (
@@ -46,7 +62,7 @@ export default function EditPostClient({ post }: EditPostClientProps) {
     return null
   }
 
-  if (post.user_id !== user.id) {
+  if (post.user_id !== user.id && !isAdmin) {
     return null
   }
 

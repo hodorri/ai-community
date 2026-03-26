@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -37,6 +39,8 @@ export async function PUT(
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    const isAdmin = user.email === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
     // 게시글 소유자 확인
     const { data: post } = await supabase
       .from('posts')
@@ -44,7 +48,7 @@ export async function PUT(
       .eq('id', params.id)
       .single()
 
-    if (!post || post.user_id !== user.id) {
+    if (!post || (post.user_id !== user.id && !isAdmin)) {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 
@@ -91,6 +95,8 @@ export async function DELETE(
       return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 })
     }
 
+    const isAdmin = user.email === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
     // 게시글 소유자 확인
     const { data: post } = await supabase
       .from('posts')
@@ -98,7 +104,7 @@ export async function DELETE(
       .eq('id', params.id)
       .single()
 
-    if (!post || post.user_id !== user.id) {
+    if (!post || (post.user_id !== user.id && !isAdmin)) {
       return NextResponse.json({ error: '권한이 없습니다.' }, { status: 403 })
     }
 

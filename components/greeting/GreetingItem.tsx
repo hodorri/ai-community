@@ -7,6 +7,8 @@ import Image from 'next/image'
 import GreetingCommentSection from './GreetingCommentSection'
 import type { Greeting } from '@/lib/types/database'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 interface GreetingItemProps {
   greeting: Greeting
   onUpdate: () => void
@@ -85,6 +87,7 @@ export default function GreetingItem({ greeting, onUpdate }: GreetingItemProps) 
   const authorName = greeting.user?.nickname || greeting.user?.name || greeting.user?.email?.split('@')[0] || '익명'
   const authorInitial = authorName.charAt(0).toUpperCase()
   const isOwner = user?.id === greeting.user_id
+  const isAdmin = user?.email === ADMIN_EMAIL && ADMIN_EMAIL !== ''
 
   // 좋아요 상태 확인
   useEffect(() => {
@@ -188,11 +191,16 @@ export default function GreetingItem({ greeting, onUpdate }: GreetingItemProps) 
 
     try {
       // 가입인사 삭제 (관련 좋아요와 댓글은 CASCADE로 자동 삭제됨)
-      const { error } = await supabase
+      let deleteQuery = supabase
         .from('greetings')
         .delete()
         .eq('id', greeting.id)
-        .eq('user_id', user.id) // 본인 확인
+
+      if (!isAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id) // 본인 확인
+      }
+
+      const { error } = await deleteQuery
 
       if (error) {
         throw new Error(error.message || '가입인사 삭제에 실패했습니다.')
@@ -243,8 +251,8 @@ export default function GreetingItem({ greeting, onUpdate }: GreetingItemProps) 
               <span className="text-xs text-gray-500">{getTimeAgo(greeting.created_at)}</span>
             </div>
             
-            {/* 삭제 버튼 (작성자 본인만) */}
-            {isOwner && (
+            {/* 삭제 버튼 (작성자 본인 또는 관리자) */}
+            {(isOwner || isAdmin) && (
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}

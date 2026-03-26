@@ -111,11 +111,16 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
     if (!confirm('정말 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await supabase
+      let query = supabase
         .from('posts')
         .delete()
         .eq('id', post.id)
-        .eq('user_id', currentUserId)
+
+      if (!isAdmin) {
+        query = query.eq('user_id', currentUserId)
+      }
+
+      const { error } = await query
 
       if (error) {
         throw error
@@ -193,7 +198,7 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
                     {isPinned ? '고정 해제' : '상단 고정'}
                   </button>
                 )}
-                {isOwner && (
+                {(isOwner || isAdmin) && (
                   <>
                     <button
                       onClick={() => {

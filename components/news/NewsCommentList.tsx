@@ -6,6 +6,8 @@ import Image from 'next/image'
 import NewsCommentForm from './NewsCommentForm'
 import type { NewsComment } from '@/lib/types/database'
 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
+
 interface NewsCommentListProps {
   comments: NewsComment[]
   currentUserId?: string
@@ -40,6 +42,7 @@ function NewsCommentItem({
   const [showMenu, setShowMenu] = useState(false)
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 메뉴 외부 클릭 시 닫기
@@ -84,6 +87,16 @@ function NewsCommentItem({
   })()
 
   const isOwner = currentUserId === comment.user_id
+  const isAdmin = currentUserEmail === ADMIN_EMAIL && ADMIN_EMAIL !== ''
+
+  // 현재 사용자 이메일 가져오기
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserEmail(user?.email || null)
+    }
+    fetchCurrentUser()
+  }, [supabase])
 
   // 좋아요 상태 및 개수 조회
   useEffect(() => {
@@ -182,14 +195,19 @@ function NewsCommentItem({
       }
 
       // 댓글 수정
-      const { data: updatedComment, error } = await supabase
+      let updateQuery = supabase
         .from('news_comments')
         .update({
           content: editContent.trim(),
           updated_at: new Date().toISOString(),
         })
         .eq('id', comment.id)
-        .eq('user_id', user.id) // 소유자 확인
+
+      if (!isAdmin) {
+        updateQuery = updateQuery.eq('user_id', user.id) // 소유자 확인
+      }
+
+      const { data: updatedComment, error } = await updateQuery
         .select()
         .single()
 
@@ -229,11 +247,16 @@ function NewsCommentItem({
       }
 
       // 댓글 삭제
-      const { data: deletedComment, error } = await supabase
+      let deleteQuery = supabase
         .from('news_comments')
         .delete()
         .eq('id', comment.id)
-        .eq('user_id', user.id) // 소유자 확인
+
+      if (!isAdmin) {
+        deleteQuery = deleteQuery.eq('user_id', user.id) // 소유자 확인
+      }
+
+      const { data: deletedComment, error } = await deleteQuery
         .select()
         .single()
 
@@ -337,7 +360,7 @@ function NewsCommentItem({
                 >
                   답변
                 </button>
-                {isOwner && (
+                {(isOwner || isAdmin) && (
                   <div className="relative" ref={menuRef}>
                     <button
                       onClick={() => setShowMenu(!showMenu)}
