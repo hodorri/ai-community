@@ -1505,7 +1505,7 @@ function ActivityContent() {
 }
 
 function MyBadges({ userId }: { userId: string }) {
-  const [badges, setBadges] = useState<{ id: string; name: string; image: string; description?: string }[]>([])
+  const [badges, setBadges] = useState<{ id: string; name: string; image: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -1528,7 +1528,7 @@ function MyBadges({ userId }: { userId: string }) {
 
         const { data: definitions } = await supabase
           .from('badge_definitions')
-          .select('id, name, image_path, description')
+          .select('id, name, image_path')
           .in('id', badgeIds)
 
         if (definitions && definitions.length > 0) {
@@ -1536,7 +1536,6 @@ function MyBadges({ userId }: { userId: string }) {
             id: d.id,
             name: d.name,
             image: d.image_path,
-            description: d.description,
           })))
         } else {
           const { DEFAULT_BADGES } = await import('@/lib/badges')
