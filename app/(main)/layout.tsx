@@ -7,7 +7,7 @@ import ApprovalBanner from '@/components/ApprovalBanner'
 import TabNavigation from '@/components/TabNavigation'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'notice' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 function MainLayoutContent({
   children,
@@ -39,12 +39,17 @@ function MainLayoutContent({
     // 대시보드 페이지인 경우
     if (pathname === '/dashboard') {
       const tabParam = searchParams.get('tab')
-      if (tabParam && ['all', 'guide', 'greeting', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
+      if (tabParam && ['all', 'notice', 'guide', 'greeting', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
         return tabParam as TabType
       }
       return user ? 'all' : 'diary'
     }
     
+    // 공지사항 상세 페이지인 경우
+    if (pathname?.startsWith('/notice/')) {
+      return 'notice'
+    }
+
     // 게시글 상세 페이지인 경우
     if (pathname?.startsWith('/post/')) {
       return 'diary'
@@ -69,6 +74,8 @@ function MainLayoutContent({
   const handleTabChange = (tab: TabType) => {
     if (tab === 'all') {
       router.push('/dashboard')
+    } else if (tab === 'notice') {
+      router.push(`/dashboard?tab=${tab}`)
     } else if (tab === 'guide') {
       router.push('/guide')
     } else if (tab === 'greeting') {
@@ -84,7 +91,8 @@ function MainLayoutContent({
   const shouldShowTabNavigation = !pathname?.startsWith('/admin') && 
                                    !pathname?.startsWith('/profile') &&
                                    pathname !== '/post/new' &&
-                                   pathname !== '/news/new'
+                                   pathname !== '/news/new' &&
+                                   pathname !== '/notice/new'
 
   return (
     <>

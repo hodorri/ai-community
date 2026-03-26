@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
 
-type TabType = 'all' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'notice' | 'guide' | 'greeting' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 interface TabNavigationProps {
   activeTab: TabType
@@ -16,6 +16,7 @@ export default function TabNavigation({ activeTab, onTabChange }: TabNavigationP
 
   const tabs = [
     { id: 'all' as TabType, label: '전체', showOnlyWhenLoggedIn: true },
+    { id: 'notice' as TabType, label: '공지사항', showOnlyWhenLoggedIn: false },
     { id: 'guide' as TabType, label: 'OKAI 가이드', showOnlyWhenLoggedIn: false },
     { id: 'greeting' as TabType, label: '가입인사', showOnlyWhenLoggedIn: false },
     { id: 'news' as TabType, label: '최신 AI 소식', showOnlyWhenLoggedIn: false },

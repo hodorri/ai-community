@@ -15,7 +15,7 @@ import NewsContent from '@/components/news/NewsContent'
 
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || ''
 
-type TabType = 'all' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
+type TabType = 'all' | 'notice' | 'diary' | 'news' | 'cases' | 'study' | 'activity'
 
 function DashboardContent() {
   const { user, loading: authLoading } = useAuth()
@@ -25,7 +25,7 @@ function DashboardContent() {
   
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['all', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
+    if (tabParam && ['all', 'notice', 'diary', 'news', 'cases', 'study', 'activity'].includes(tabParam)) {
       setActiveTab(tabParam as TabType)
     } else if (user) {
       setActiveTab('all')
@@ -94,11 +94,141 @@ function DashboardContent() {
           </div>
         )}
 
+        {activeTab === 'notice' && <NoticeContent />}
         {activeTab === 'diary' && <DiaryContent />}
         {activeTab === 'news' && <NewsContent />}
         {activeTab === 'study' && <StudyContent showCreateButton={true} showTitle={true} showDescription={true} />}
         {activeTab === 'activity' && <ActivityContent />}
       </div>
+    </div>
+  )
+}
+
+// 공지사항 컴포넌트
+function NoticeContent() {
+  const { user } = useAuth()
+  const [notices, setNotices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const isAdmin = user?.email === ADMIN_EMAIL
+
+  useEffect(() => {
+    async function fetchNotices() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        const { data: noticesData, error: noticesError } = await supabase
+          .from('notices')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(20)
+
+        if (noticesError) {
+          throw new Error(noticesError.message || '공지사항을 불러오는데 실패했습니다.')
+        }
+
+        if (!noticesData || noticesData.length === 0) {
+          setNotices([])
+          setLoading(false)
+          return
+        }
+
+        const noticesWithCounts = await Promise.all(
+          noticesData.map(async (notice: any) => {
+            const [profileResult, likesResult, commentsResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('email, name, nickname, avatar_url, company, team, position')
+                .eq('id', notice.user_id)
+                .single(),
+              supabase
+                .from('notice_likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('notice_id', notice.id),
+              supabase
+                .from('notice_comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('notice_id', notice.id),
+            ])
+
+            return {
+              ...notice,
+              user: {
+                email: profileResult.data?.email || null,
+                name: profileResult.data?.name || null,
+                nickname: profileResult.data?.nickname || null,
+                avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
+              },
+              likes_count: likesResult.count || 0,
+              comments_count: commentsResult.count || 0,
+            }
+          })
+        )
+
+        setNotices(noticesWithCounts)
+        setError(null)
+      } catch (error) {
+        setError(error instanceof Error ? error.message : '공지사항을 불러오는데 실패했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchNotices()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6 max-w-md mx-auto">
+          <p className="text-red-700 font-semibold mb-2">오류가 발생했습니다</p>
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-3">공지사항</h1>
+        <p className="text-gray-600 text-base">
+          커뮤니티 운영 관련 공지사항을 확인하세요.
+        </p>
+      </div>
+
+      {/* 관리자만 글쓰기 버튼 표시 */}
+      {isAdmin && (
+        <div className="mb-6 flex justify-end">
+          <Link
+            href="/notice/new"
+            className="bg-ok-primary text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-ok-dark transition-colors shadow-md hover:shadow-lg"
+          >
+            공지 작성
+          </Link>
+        </div>
+      )}
+
+      {notices.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-200">
+          <p className="text-gray-500">아직 등록된 공지사항이 없습니다.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+          {notices.map((notice: any) => (
+            <PostListItem key={notice.id} post={notice} linkPrefix="/notice" />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

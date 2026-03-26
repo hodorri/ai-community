@@ -7,10 +7,11 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get('q')?.trim()
 
     if (!query || query.length === 0) {
-      return NextResponse.json({ 
-        posts: [], 
+      return NextResponse.json({
+        posts: [],
         news: [],
-        cases: []
+        cases: [],
+        notices: []
       })
     }
 
@@ -147,10 +148,35 @@ export async function GET(request: NextRequest) {
     console.log('[검색 API] News 결과:', uniqueNews.length, '개')
     console.log('[검색 API] Cases 결과:', uniqueCases.length, '개')
 
+    // Notices 검색
+    const { data: noticesByTitle } = await supabase
+      .from('notices')
+      .select('id, title, content, created_at, user_id')
+      .ilike('title', searchPattern)
+      .limit(20)
+
+    const { data: noticesByContent } = await supabase
+      .from('notices')
+      .select('id, title, content, created_at, user_id')
+      .ilike('content', searchPattern)
+      .limit(20)
+
+    const allNotices = [...(noticesByTitle || []), ...(noticesByContent || [])]
+    const uniqueNoticesMap = new Map()
+    allNotices.forEach(notice => {
+      if (!uniqueNoticesMap.has(notice.id)) {
+        uniqueNoticesMap.set(notice.id, notice)
+      }
+    })
+    const uniqueNotices = Array.from(uniqueNoticesMap.values())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 10)
+
     return NextResponse.json({
       posts: uniquePosts || [],
       news: uniqueNews || [],
       cases: uniqueCases || [],
+      notices: uniqueNotices || [],
     })
   } catch (error) {
     console.error('[검색 API] 예외 발생:', error)
