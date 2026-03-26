@@ -76,35 +76,37 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-6 w-full">
-      <div>
-        <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
-        <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors" placeholder="your@email.com" />
-      </div>
-      <div>
-        <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">비밀번호</label>
-        <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors" placeholder="••••••••" />
-      </div>
-      {error && (
-        <div className={`px-4 py-3 rounded-xl text-sm ${
-          error.includes('승인 대기')
-            ? 'bg-yellow-50 border-2 border-yellow-200 text-yellow-700'
-            : 'bg-red-50 border-2 border-red-200 text-red-600'
-        }`}>
-          {error}
+    <>
+      <form onSubmit={handleLogin} className="space-y-6 w-full">
+        <div>
+          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
+          <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors" placeholder="your@email.com" />
         </div>
-      )}
-      <button type="submit" disabled={loading} className="w-full bg-ok-primary text-white py-3 px-4 rounded-xl font-semibold hover:bg-ok-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg">
-        {loading ? '로그인 중...' : '로그인'}
-      </button>
-      <p className="text-center text-xs text-gray-500">
-        비밀번호를 잊으셨나요?{' '}
-        <button type="button" onClick={() => setShowContact(true)} className="text-ok-primary hover:text-ok-dark font-semibold">
-          관리자에게 문의
+        <div>
+          <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">비밀번호</label>
+          <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-ok-primary focus:ring-2 focus:ring-ok-primary/20 transition-colors" placeholder="••••••••" />
+        </div>
+        {error && (
+          <div className={`px-4 py-3 rounded-xl text-sm ${
+            error.includes('승인 대기')
+              ? 'bg-yellow-50 border-2 border-yellow-200 text-yellow-700'
+              : 'bg-red-50 border-2 border-red-200 text-red-600'
+          }`}>
+            {error}
+          </div>
+        )}
+        <button type="submit" disabled={loading} className="w-full bg-ok-primary text-white py-3 px-4 rounded-xl font-semibold hover:bg-ok-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md hover:shadow-lg">
+          {loading ? '로그인 중...' : '로그인'}
         </button>
-        해주세요.
-      </p>
+        <p className="text-center text-xs text-gray-500">
+          비밀번호를 잊으셨나요?{' '}
+          <button type="button" onClick={() => setShowContact(true)} className="text-ok-primary hover:text-ok-dark font-semibold">
+            관리자에게 문의
+          </button>
+          해주세요.
+        </p>
+      </form>
       <ContactForm isOpen={showContact} onClose={() => setShowContact(false)} />
-    </form>
+    </>
   )
 }
