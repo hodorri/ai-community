@@ -111,26 +111,34 @@ export default function PostDetail({ post, isLiked: initialIsLiked, currentUserI
     if (!confirm('정말 삭제하시겠습니까?')) return
 
     try {
-      let query = supabase
-        .from('posts')
+      // API 라우트를 통해 삭제 (RLS 우회)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '삭제에 실패했습니다.')
+      }
+
+      // 관련 포인트도 삭제
+      await supabase
+        .from('activity_points')
         .delete()
-        .eq('id', post.id)
-
-      if (!isAdmin) {
-        query = query.eq('user_id', currentUserId)
-      }
-
-      const { error } = await query
-
-      if (error) {
-        throw error
-      }
+        .eq('reference_id', post.id)
+        .eq('activity_type', 'post_create')
 
       router.push('/dashboard')
       router.refresh()
     } catch (error) {
       console.error('삭제 오류:', error)
-      alert('삭제에 실패했습니다.')
+      alert(error instanceof Error ? error.message : '삭제에 실패했습니다.')
     }
   }
 

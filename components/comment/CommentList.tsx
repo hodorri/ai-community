@@ -163,38 +163,21 @@ function CommentItem({
 
     try {
       const supabase = createClient()
-      
-      // 현재 사용자 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError || !user) {
-        throw new Error('인증이 필요합니다. 로그인 후 다시 시도해주세요.')
-      }
+      const { data: { session } } = await supabase.auth.getSession()
 
-      // 댓글 수정
-      let updateQuery = supabase
-        .from('comments')
-        .update({
-          content: editContent.trim(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', comment.id)
+      const res = await fetch(`/api/comments/${comment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ content: editContent.trim() }),
+      })
 
-      if (!isAdmin) {
-        updateQuery = updateQuery.eq('user_id', user.id) // 소유자 확인
-      }
-
-      const { data: updatedComment, error } = await updateQuery
-        .select()
-        .single()
-
-      if (error) {
-        console.error('댓글 수정 실패:', error)
-        throw new Error(error.message || '댓글 수정에 실패했습니다.')
-      }
-
-      if (!updatedComment) {
-        throw new Error('댓글을 찾을 수 없거나 권한이 없습니다.')
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '댓글 수정에 실패했습니다.')
       }
 
       setEditingId(null)
@@ -216,36 +199,29 @@ function CommentItem({
 
     try {
       const supabase = createClient()
-      
-      // 현재 사용자 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError || !user) {
-        throw new Error('인증이 필요합니다. 로그인 후 다시 시도해주세요.')
+
+      // API 라우트를 통해 삭제 (RLS 우회)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/comments/${comment.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+        },
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || '댓글 삭제에 실패했습니다.')
       }
 
-      // 댓글 삭제
-      let deleteQuery = supabase
-        .from('comments')
+      // 관련 포인트 삭제
+      await supabase
+        .from('activity_points')
         .delete()
-        .eq('id', comment.id)
-
-      if (!isAdmin) {
-        deleteQuery = deleteQuery.eq('user_id', user.id) // 소유자 확인
-      }
-
-      const { data: deletedComment, error } = await deleteQuery
-        .select()
-        .single()
-
-      if (error) {
-        console.error('댓글 삭제 실패:', error)
-        throw new Error(error.message || '댓글 삭제에 실패했습니다.')
-      }
-
-      if (!deletedComment) {
-        throw new Error('댓글을 찾을 수 없거나 권한이 없습니다.')
-      }
+        .eq('reference_id', comment.id)
+        .eq('activity_type', 'comment_create')
 
       onCommentDeleted()
     } catch (error) {
