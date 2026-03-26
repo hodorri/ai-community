@@ -163,22 +163,14 @@ function CommentItem({
 
     try {
       const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
 
-      const res = await fetch(`/api/comments/${comment.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({ content: editContent.trim() }),
-      })
+      // 댓글 수정 (RLS 정책에서 관리자 허용)
+      const { error } = await supabase
+        .from('comments')
+        .update({ content: editContent.trim(), updated_at: new Date().toISOString() })
+        .eq('id', comment.id)
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || '댓글 수정에 실패했습니다.')
-      }
+      if (error) throw new Error(error.message || '댓글 수정에 실패했습니다.')
 
       setEditingId(null)
       setEditContent('')
@@ -200,28 +192,20 @@ function CommentItem({
     try {
       const supabase = createClient()
 
-      // API 라우트를 통해 삭제 (RLS 우회)
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`/api/comments/${comment.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
-        },
-        credentials: 'include',
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || '댓글 삭제에 실패했습니다.')
-      }
-
-      // 관련 포인트 삭제
+      // 관련 포인트 먼저 삭제
       await supabase
         .from('activity_points')
         .delete()
         .eq('reference_id', comment.id)
         .eq('activity_type', 'comment_create')
+
+      // 댓글 삭제 (RLS 정책에서 관리자 허용)
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', comment.id)
+
+      if (error) throw new Error(error.message || '댓글 삭제에 실패했습니다.')
 
       onCommentDeleted()
     } catch (error) {
