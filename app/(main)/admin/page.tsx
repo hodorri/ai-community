@@ -1597,12 +1597,11 @@ export default function AdminPage() {
                 onClick={async () => {
                   setResettingPw(true)
                   try {
-                    const session = await supabase.auth.getSession()
+                    const { data: { user: currentUser } } = await supabase.auth.getUser()
                     const res = await fetch('/api/admin/reset-password', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({ userId: resetPwUserId, newPassword }),
+                      body: JSON.stringify({ userId: resetPwUserId, newPassword, adminEmail: currentUser?.email }),
                     })
                     const result = await res.json()
                     if (!res.ok) throw new Error(result.error)
