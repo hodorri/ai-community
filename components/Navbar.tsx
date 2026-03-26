@@ -170,32 +170,27 @@ export default function Navbar() {
           </button>
         </div>
 
-        {/* 두 번째 줄: 제목 | 검색 | 프로필 | 로그아웃 (모두 같은 높이) */}
-        <div className="flex justify-between items-center h-16 relative">
-          {/* 왼쪽: 빈 공간 */}
-          <div className="flex-1" />
-          
-          {/* 가운데: 로고 - 화면 가로 정가운데 */}
-          <div className="absolute left-1/2 transform -translate-x-1/2">
-            <Link 
-              href={user ? "/dashboard" : "/"} 
-              className="text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
-            >
-              {/* eslint-disable-next-line react/no-unescaped-entities */}
-              It's OKAI
-            </Link>
-          </div>
-          
+        {/* 두 번째 줄: 제목 | 검색 | 프로필 | 로그아웃 */}
+        <div className="flex justify-between items-center h-14 sm:h-16">
+          {/* 왼쪽: 로고 */}
+          <Link
+            href={user ? "/dashboard" : "/"}
+            className="text-lg sm:text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors flex-shrink-0"
+          >
+            {/* eslint-disable-next-line react/no-unescaped-entities */}
+            It's OKAI
+          </Link>
+
           {/* 오른쪽: 검색 및 사용자 메뉴 */}
-          <div className="flex-1 flex items-center justify-end space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             {/* 검색 아이콘/입력 */}
             <div className="relative flex-shrink-0">
               {showSearch ? (
-                <div className="absolute right-0 top-full mt-2 z-50">
-                  <div 
+                <div className="fixed sm:absolute inset-x-2 sm:inset-x-auto sm:right-0 top-24 sm:top-full sm:mt-2 z-50">
+                  <div
                     ref={searchFormRef}
-                    className="flex flex-col bg-white shadow-xl rounded-lg border border-gray-200"
-                    style={{ width: '450px', maxHeight: '600px' }}
+                    className="flex flex-col bg-white shadow-xl rounded-lg border border-gray-200 w-full sm:w-[450px]"
+                    style={{ maxHeight: '600px' }}
                   >
                     {/* 검색 입력창 - 항상 상단에 고정 */}
                     <form 
