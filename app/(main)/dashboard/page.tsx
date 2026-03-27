@@ -70,6 +70,9 @@ function DashboardContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'all' && user && (
           <div className="space-y-12">
+            {/* 공지사항 - 최신 3개 */}
+            <NoticeSummary />
+
             {/* 최신 AI 소식 - 고정 게시물만 표시 + 전체보기 버튼 */}
             <NewsContent showAll={false} />
             
@@ -393,6 +396,105 @@ function DiaryContent() {
 // 최신 AI News 컴포넌트는 별도 파일로 분리됨
 
 // AI 활용사례 요약 컴포넌트 (대시보드용, 최대 3개)
+// 공지사항 요약 컴포넌트 (대시보드용, 최신 3개)
+function NoticeSummary() {
+  const [notices, setNotices] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchNotices() {
+      try {
+        const { createClient } = await import('@/lib/supabase/client')
+        const supabase = createClient()
+
+        const { data, error } = await supabase
+          .from('notices')
+          .select('*')
+          .order('is_pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(3)
+
+        if (error) throw error
+
+        if (!data || data.length === 0) {
+          setNotices([])
+          setLoading(false)
+          return
+        }
+
+        const noticesWithUser = await Promise.all(
+          data.map(async (notice: any) => {
+            const [profileResult, likesResult, commentsResult] = await Promise.all([
+              supabase
+                .from('profiles')
+                .select('email, name, nickname, avatar_url, company, team, position')
+                .eq('id', notice.user_id)
+                .single(),
+              supabase
+                .from('notice_likes')
+                .select('*', { count: 'exact', head: true })
+                .eq('notice_id', notice.id),
+              supabase
+                .from('notice_comments')
+                .select('*', { count: 'exact', head: true })
+                .eq('notice_id', notice.id),
+            ])
+
+            return {
+              ...notice,
+              user: {
+                email: profileResult.data?.email || null,
+                name: profileResult.data?.name || null,
+                nickname: profileResult.data?.nickname || null,
+                avatar_url: profileResult.data?.avatar_url || null,
+                company: profileResult.data?.company || null,
+                team: profileResult.data?.team || null,
+                position: profileResult.data?.position || null,
+              },
+              likes_count: likesResult.count || 0,
+              comments_count: commentsResult.count || 0,
+            }
+          })
+        )
+
+        setNotices(noticesWithUser)
+      } catch (error) {
+        console.error('공지사항 조회 오류:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchNotices()
+  }, [])
+
+  if (loading) {
+    return <div className="text-center py-8 text-gray-500">로딩 중...</div>
+  }
+
+  if (notices.length === 0) {
+    return null
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">공지사항</h2>
+        <Link
+          href="/dashboard?tab=notice"
+          className="text-ok-primary hover:text-ok-dark font-semibold text-sm flex items-center gap-1"
+        >
+          공지 전체보기 →
+        </Link>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {notices.map((notice: any) => (
+          <PostListItem key={notice.id} post={notice} linkPrefix="/notice" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function CasesSummary() {
   const [cases, setCases] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
